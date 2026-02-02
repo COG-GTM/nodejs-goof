@@ -49,9 +49,14 @@ User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
   console.log(users);
   if (users.length === 0) {
     console.log('no admin');
-    new User({ username: 'admin@snyk.io', password: 'SuperSecretPassword' }).save(function (err, user, count) {
+    // Security: Use environment variable for admin password instead of hardcoding
+    var crypto = require('crypto');
+    var adminPassword = process.env.ADMIN_PASSWORD || crypto.randomBytes(16).toString('hex');
+    new User({ username: 'admin@snyk.io', password: adminPassword }).save(function (err, user, count) {
       if (err) {
         console.log('error saving admin user');
+      } else {
+        console.log('Admin user created. Set ADMIN_PASSWORD env var for a specific password.');
       }
     });
   }

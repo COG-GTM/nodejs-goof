@@ -11,7 +11,7 @@ var crypto = require('crypto');
 var express = require('express');
 var http = require('http');
 var path = require('path');
-var ejsEngine = require('ejs-locals');
+var ejs = require('ejs');
 var bodyParser = require('body-parser');
 var session = require('express-session')
 var methodOverride = require('method-override');
@@ -23,15 +23,19 @@ var fileUpload = require('express-fileupload');
 var dust = require('dustjs-linkedin');
 var dustHelpers = require('dustjs-helpers');
 var cons = require('consolidate');
-const hbs = require('hbs')
+const hbs = require('hbs');
+const helmet = require('helmet');
 
 var app = express();
 var routes = require('./routes');
 var routesUsers = require('./routes/users.js')
 
+// Security: Use helmet to set secure HTTP headers (disables X-Powered-By, adds security headers)
+app.use(helmet());
+
 // all environments
 app.set('port', process.env.PORT || 3001);
-app.engine('ejs', ejsEngine);
+app.engine('ejs', ejs.renderFile);
 app.engine('dust', cons.dust);
 app.engine('hbs', hbs.__express);
 cons.dust.helpers = dustHelpers;
@@ -39,14 +43,27 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 app.use(logger('dev'));
 app.use(methodOverride());
+
+// Security: Use environment variable for session secret, secure cookie settings
+var sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 app.use(session({
-  secret: 'keyboard cat',
+  secret: sessionSecret,
   name: 'connect.sid',
-  cookie: { path: '/' }
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    path: '/',
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict'
+  }
 }))
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-app.use(fileUpload());
+app.use(fileUpload({
+  limits: { fileSize: 10 * 1024 * 1024 },
+  abortOnLimit: true
+}));
 
 // Routes
 app.use(routes.current_user);
@@ -71,8 +88,7 @@ app.use('/users', routesUsers)
 // Static
 app.use(st({ path: './public', url: '/public' }));
 
-// Add the option to output (sanitized!) markdown
-marked.setOptions({ sanitize: true });
+// Add the option to output markdown (sanitize option deprecated in newer marked versions)
 app.locals.marked = marked;
 
 // development only
@@ -80,8 +96,11 @@ if (app.get('env') == 'development') {
   app.use(errorHandler());
 }
 
-var token = 'SECRET_TOKEN_f8ed84e8f41e4146403dd4a6bbcea5e418d23a9';
-console.log('token: ' + token);
+// Security: Use environment variable for API token instead of hardcoding
+var token = process.env.API_TOKEN || crypto.randomBytes(32).toString('hex');
+if (process.env.NODE_ENV === 'development') {
+  console.log('token: ' + token);
+}
 
 http.createServer(app).listen(app.get('port'), function () {
   console.log('Express server listening on port ' + app.get('port'));

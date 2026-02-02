@@ -35,12 +35,20 @@ exports.index = function (req, res, next) {
 };
 
 exports.loginHandler = function (req, res, next) {
-  if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
-      if (users.length > 0) {
+  // Security: Validate and sanitize inputs to prevent NoSQL injection
+  const username = String(req.body.username || '');
+  const password = String(req.body.password || '');
+  
+  if (validator.isEmail(username)) {
+    // Security: Use explicit string values to prevent NoSQL injection via object operators
+    User.find({ username: username, password: password }, function (err, users) {
+      if (err) {
+        console.error('Login error:', err);
+        return res.status(500).send();
+      }
+      if (users && users.length > 0) {
         const redirectPage = req.body.redirectPage
         const session = req.session
-        const username = req.body.username
         return adminLoginSuccess(redirectPage, session, username, res)
       } else {
         return res.status(401).send()
@@ -57,11 +65,14 @@ function adminLoginSuccess(redirectPage, session, username, res) {
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (redirectPage) {
+  // Security: Prevent open redirect by validating redirectPage is a relative path
+  if (redirectPage && typeof redirectPage === 'string') {
+    // Only allow relative paths starting with / and not containing //
+    if (redirectPage.startsWith('/') && !redirectPage.startsWith('//') && !redirectPage.includes('://')) {
       return res.redirect(redirectPage)
-  } else {
-      return res.redirect('/admin')
+    }
   }
+  return res.redirect('/admin')
 }
 
 exports.login = function (req, res, next) {
@@ -339,16 +350,16 @@ exports.chat = {
       return;
     }
 
+    // Security: Avoid prototype pollution by not using _.merge with untrusted input
+    // Instead, explicitly copy only allowed properties
+    const userMessage = req.body.message || {};
     const message = {
-      // Default message icon. Cen be overwritten by user.
-      icon: '👋',
-    };
-
-    _.merge(message, req.body.message, {
+      icon: typeof userMessage.icon === 'string' ? userMessage.icon : '👋',
+      text: typeof userMessage.text === 'string' ? userMessage.text : '',
       id: lastId++,
       timestamp: Date.now(),
       userName: user.name,
-    });
+    };
 
     messages.push(message);
     res.send({ ok: true });
