@@ -8,7 +8,6 @@ var ms = require('ms');
 var streamBuffers = require('stream-buffers');
 var readline = require('readline');
 var moment = require('moment');
-var exec = require('child_process').exec;
 var execFile = require('child_process').execFile;
 var validator = require('validator');
 

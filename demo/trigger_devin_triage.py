@@ -19,7 +19,6 @@ Flow:
 import os
 import sys
 import time
-import json
 
 try:
     import requests
