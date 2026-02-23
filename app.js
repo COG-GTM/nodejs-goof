@@ -11,7 +11,7 @@ var crypto = require('crypto');
 var express = require('express');
 var http = require('http');
 var path = require('path');
-var ejs = require('ejs');
+var ejsEngine = require('ejs-locals');
 var bodyParser = require('body-parser');
 var session = require('express-session')
 var methodOverride = require('method-override');
@@ -35,7 +35,7 @@ app.use(helmet());
 
 // all environments
 app.set('port', process.env.PORT || 3001);
-app.engine('ejs', ejs.renderFile);
+app.engine('ejs', ejsEngine);
 app.engine('dust', cons.dust);
 app.engine('hbs', hbs.__express);
 cons.dust.helpers = dustHelpers;
@@ -88,8 +88,8 @@ app.use('/users', routesUsers)
 // Static
 app.use(st({ path: './public', url: '/public' }));
 
-// Add the option to output markdown (sanitize option deprecated in newer marked versions)
-app.locals.marked = marked;
+// Add the option to output markdown (marked v12+ uses .parse method instead of direct call)
+app.locals.marked = marked.parse;
 
 // development only
 if (app.get('env') == 'development') {
