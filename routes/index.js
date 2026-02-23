@@ -23,28 +23,35 @@ exports.index = function (req, res, next) {
   Todo.
     find({}).
     sort('-updated_at').
-    exec(function (err, todos) {
-      if (err) return next(err);
-
+    exec().then(function (todos) {
       res.render('index', {
         title: 'Patch TODO List',
         subhead: 'Vulnerabilities at their best',
         todos: todos,
       });
+    }).catch(function (err) {
+      return next(err);
     });
 };
 
 exports.loginHandler = function (req, res, next) {
-  if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
-      if (users.length > 0) {
+  // Security: Validate and sanitize inputs to prevent NoSQL injection
+  const username = String(req.body.username || '');
+  const password = String(req.body.password || '');
+  
+  if (validator.isEmail(username)) {
+    // Security: Use explicit string values to prevent NoSQL injection via object operators
+    User.find({ username: username, password: password }).then(function (users) {
+      if (users && users.length > 0) {
         const redirectPage = req.body.redirectPage
         const session = req.session
-        const username = req.body.username
         return adminLoginSuccess(redirectPage, session, username, res)
       } else {
         return res.status(401).send()
       }
+    }).catch(function (err) {
+      console.error('Login error:', err);
+      return res.status(500).send();
     });
   } else {
     return res.status(401).send()
@@ -57,11 +64,15 @@ function adminLoginSuccess(redirectPage, session, username, res) {
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (redirectPage) {
+  // Security: Prevent open redirect by validating redirectPage is a relative path
+  if (redirectPage && typeof redirectPage === 'string') {
+    // Only allow relative paths starting with / and not containing // or backslash
+    // Backslash check prevents bypass where browsers normalize /\evil.com to //evil.com
+    if (redirectPage.startsWith('/') && !redirectPage.startsWith('//') && !redirectPage.includes('://') && !redirectPage.includes('\\')) {
       return res.redirect(redirectPage)
-  } else {
-      return res.redirect('/admin')
+    }
   }
+  return res.redirect('/admin')
 }
 
 exports.login = function (req, res, next) {
@@ -172,9 +183,7 @@ exports.create = function (req, res, next) {
   new Todo({
     content: item,
     updated_at: Date.now(),
-  }).save(function (err, todo, count) {
-    if (err) return next(err);
-
+  }).save().then(function (todo) {
     /*
     res.setHeader('Data', todo.content.toString('base64'));
     res.redirect('/');
@@ -184,19 +193,21 @@ exports.create = function (req, res, next) {
     res.status(302).send(todo.content.toString('base64'));
 
     // res.redirect('/#' + todo.content.toString('base64'));
+  }).catch(function (err) {
+    return next(err);
   });
 };
 
 exports.destroy = function (req, res, next) {
-  Todo.findById(req.params.id, function (err, todo) {
-
-    try {
-      todo.remove(function (err, todo) {
-        if (err) return next(err);
-        res.redirect('/');
-      });
-    } catch (e) {
+  Todo.findById(req.params.id).then(function (todo) {
+    if (!todo) {
+      return res.redirect('/');
     }
+    return Todo.deleteOne({ _id: todo._id }).then(function () {
+      res.redirect('/');
+    });
+  }).catch(function (err) {
+    res.redirect('/');
   });
 };
 
@@ -204,27 +215,29 @@ exports.edit = function (req, res, next) {
   Todo.
     find({}).
     sort('-updated_at').
-    exec(function (err, todos) {
-      if (err) return next(err);
-
+    exec().then(function (todos) {
       res.render('edit', {
         title: 'TODO',
         todos: todos,
         current: req.params.id
       });
+    }).catch(function (err) {
+      return next(err);
     });
 };
 
 exports.update = function (req, res, next) {
-  Todo.findById(req.params.id, function (err, todo) {
-
+  Todo.findById(req.params.id).then(function (todo) {
+    if (!todo) {
+      return res.redirect('/');
+    }
     todo.content = req.body.content;
     todo.updated_at = Date.now();
-    todo.save(function (err, todo, count) {
-      if (err) return next(err);
-
+    return todo.save().then(function () {
       res.redirect('/');
     });
+  }).catch(function (err) {
+    return next(err);
   });
 };
 
@@ -285,9 +298,10 @@ exports.import = function (req, res, next) {
       new Todo({
         content: item,
         updated_at: Date.now(),
-      }).save(function (err, todo, count) {
-        if (err) return next(err);
+      }).save().then(function (todo) {
         console.log('added ' + todo);
+      }).catch(function (err) {
+        console.log('error adding todo: ' + err);
       });
     }
   });
@@ -339,16 +353,16 @@ exports.chat = {
       return;
     }
 
+    // Security: Avoid prototype pollution by not using _.merge with untrusted input
+    // Instead, explicitly copy only allowed properties
+    const userMessage = req.body.message || {};
     const message = {
-      // Default message icon. Cen be overwritten by user.
-      icon: '👋',
-    };
-
-    _.merge(message, req.body.message, {
+      icon: typeof userMessage.icon === 'string' ? userMessage.icon : '👋',
+      text: typeof userMessage.text === 'string' ? userMessage.text : '',
       id: lastId++,
       timestamp: Date.now(),
       userName: user.name,
-    });
+    };
 
     messages.push(message);
     res.send({ ok: true });
