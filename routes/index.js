@@ -35,8 +35,17 @@ exports.index = function (req, res, next) {
 };
 
 exports.loginHandler = function (req, res, next) {
-  if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
+  var username = req.body.username
+  var password = req.body.password
+  // Reject non-string credentials so NoSQL operator objects (e.g. { $gt: '' })
+  // cannot be injected into the query.
+  if (typeof username !== 'string' || typeof password !== 'string') {
+    return res.status(401).send()
+  }
+  if (validator.isEmail(username)) {
+    // Coerce to primitive strings so request input cannot smuggle NoSQL
+    // query operators (e.g. { $gt: '' }) into the lookup.
+    User.find({ username: String(username), password: String(password) }, function (err, users) {
       if (users.length > 0) {
         const redirectPage = req.body.redirectPage
         const session = req.session
@@ -57,7 +66,11 @@ function adminLoginSuccess(redirectPage, session, username, res) {
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (redirectPage) {
+  // Only allow local, relative redirects to prevent open redirects.
+  // Must start with a single '/' and not be followed by '/' or '\\'
+  // (browsers treat '//' and '/\\' as protocol-relative URLs that would
+  // redirect to another host).
+  if (typeof redirectPage === 'string' && /^\/(?![\/\\])/.test(redirectPage)) {
       return res.redirect(redirectPage)
   } else {
       return res.redirect('/admin')
