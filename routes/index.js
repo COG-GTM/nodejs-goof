@@ -67,9 +67,10 @@ function adminLoginSuccess(redirectPage, session, username, res) {
   console.log(`User logged in: ${username}`)
 
   // Only allow local, relative redirects to prevent open redirects.
-  // Must start with a single '/' (not '//', which browsers treat as
-  // protocol-relative and would allow redirecting to another host).
-  if (typeof redirectPage === 'string' && /^\/(?!\/)/.test(redirectPage)) {
+  // Must start with a single '/' and not be followed by '/' or '\\'
+  // (browsers treat '//' and '/\\' as protocol-relative URLs that would
+  // redirect to another host).
+  if (typeof redirectPage === 'string' && /^\/(?![\/\\])/.test(redirectPage)) {
       return res.redirect(redirectPage)
   } else {
       return res.redirect('/admin')

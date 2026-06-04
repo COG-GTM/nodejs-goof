@@ -105,6 +105,15 @@ var pw = String(Date.now());
     detail: 'res.redirect() target = ' + JSON.stringify(res2.redirectedTo),
   });
 
+  // backslash bypass: /\evil.com (browsers resolve '\' as '/')
+  var res4 = fakeRes();
+  routes.loginHandler({ body: { username: 'admin@example.com', password: pw, redirectPage: '/\\evil.com' }, session: {} }, res4, function () {});
+  results.push({
+    name: 'Open Redirect (adminLoginSuccess) - backslash',
+    vulnerable: res4.redirectedTo === '/\\evil.com',
+    detail: 'res.redirect() target = ' + JSON.stringify(res4.redirectedTo),
+  });
+
   // sanity: a legitimate local relative redirect must still work after the fix
   var res3 = fakeRes();
   routes.loginHandler({ body: { username: 'admin@example.com', password: pw, redirectPage: '/admin/dashboard' }, session: {} }, res3, function () {});
