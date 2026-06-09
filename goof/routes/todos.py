@@ -33,9 +33,13 @@ def _humanize_to_ms(text):
     if not match:
         return None
     value = float(match.group(1))
-    unit = match.group(2).lower().rstrip("s")
-    for name, factor, _short in _MS_UNITS:
-        if name.startswith(unit) or name[0] == unit:
+    unit = match.group(2).lower()
+    # Strip a plural trailing "s" (e.g. "hours" -> "hour") but keep the
+    # single-letter shorthands "s" (seconds) and "ms" (milliseconds) intact.
+    if unit not in ("s", "ms") and unit.endswith("s"):
+        unit = unit[:-1]
+    for name, factor, short in _MS_UNITS:
+        if name.startswith(unit) or short == unit:
             return int(value * factor)
     return None
 

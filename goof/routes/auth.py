@@ -45,13 +45,16 @@ def login():
 
 @bp.route("/login", methods=["POST"])
 def login_handler():
-    username = request.form.get("username")
-    password = request.form.get("password")
+    # Accept both JSON and form bodies (mirrors Express bodyParser.json +
+    # urlencoded) so the documented JSON-based NoSQL injection exploit works.
+    body = request.get_json(silent=True) or request.form.to_dict()
+    username = body.get("username")
+    password = body.get("password")
     if _is_email(username):
         # NOTE: intentional NoSQL injection (goof) - query built from raw input
         users = list(mongo.users().find({"username": username, "password": password}))
         if len(users) > 0:
-            return _admin_login_success(request.form.get("redirectPage"), username)
+            return _admin_login_success(body.get("redirectPage"), username)
         return ("", 401)
     return ("", 401)
 
@@ -82,7 +85,8 @@ def get_account_details():
 @bp.route("/account_details", methods=["POST"])
 @login_required
 def save_account_details():
-    profile = request.form.to_dict()
+    # Accept JSON or form bodies (mirrors Express req.body handling).
+    profile = request.get_json(silent=True) or request.form.to_dict()
     if (
         _is_email(profile.get("email", ""), allow_display_name=True)
         and bool(_PHONE_IL_RE.match(profile.get("phone", "")))

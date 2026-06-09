@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from app import app as flask_app  # noqa: E402
 from goof.routes.auth import _is_email  # noqa: E402
+from goof.routes.todos import parse  # noqa: E402
 
 
 @pytest.fixture()
@@ -50,6 +51,23 @@ def test_chat_get_returns_list(client):
     resp = client.get("/chat")
     assert resp.status_code == 200
     assert isinstance(resp.get_json(), list)
+
+
+def test_parse_reminder_hours():
+    assert parse("Walk the dog in 2 hours") == "Walk the dog [2h]"
+
+
+def test_parse_reminder_seconds_not_years():
+    # Regression: "s" must mean seconds, not be stripped into a "year" match.
+    assert parse("ping in 30 s") == "ping [30s]"
+
+
+def test_parse_reminder_days():
+    assert parse("Travel in 3 days") == "Travel [3d]"
+
+
+def test_parse_no_reminder():
+    assert parse("just a plain todo") == "just a plain todo"
 
 
 def test_about_new_renders(client):
