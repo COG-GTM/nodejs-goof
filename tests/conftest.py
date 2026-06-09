@@ -256,6 +256,9 @@ def app(monkeypatch, fake_users, fake_todos):
     # Rebind collections for handlers that imported them by name.
     _rebind_collection(monkeypatch, "users", fake_users)
     _rebind_collection(monkeypatch, "todos", fake_todos)
+    # routes/__init__.py imports the users collection aliased as ``mongo_users``
+    # (to avoid shadowing the ``routes.users`` submodule), so rebind that too.
+    _rebind_collection(monkeypatch, "mongo_users", fake_users)
 
     if "main" not in flask_app.blueprints:
         pytest.skip("routes.main_bp not registered yet (Flask migration in progress)")

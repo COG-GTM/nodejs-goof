@@ -8,28 +8,30 @@ users_bp = Blueprint('users', __name__, url_prefix='/users')
 @users_bp.route('/', methods=['GET'])
 def get_users():
     session = SessionLocal()
-    results = session.query(Users).all()
+    try:
+        results = session.query(Users).all()
 
-    users = []
-    for user in results:
-        users.append({
-            'id': user.id,
-            'name': user.name,
-            'address': user.address,
-            'role': user.role,
-        })
+        users = []
+        for user in results:
+            users.append({
+                'id': user.id,
+                'name': user.name,
+                'address': user.address,
+                'role': user.role,
+            })
 
-    # Log for debug reasons, mirroring the legacy handler:
-    print('users:', users)
+        # Log for debug reasons, mirroring the legacy handler:
+        print('users:', users)
 
-    return jsonify(users)
+        return jsonify(users)
+    finally:
+        session.close()
 
 
 @users_bp.route('/', methods=['POST'])
 def create_user():
+    session = SessionLocal()
     try:
-        session = SessionLocal()
-
         user = Users()
         user.name = request.json['name']
         user.address = request.json['address']
@@ -42,3 +44,6 @@ def create_user():
 
     except Exception as err:
         print(err)
+        return jsonify({'error': str(err)}), 500
+    finally:
+        session.close()

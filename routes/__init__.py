@@ -93,7 +93,7 @@ def login():
 
 @main_bp.route('/login', methods=['POST'])
 def login_handler():
-    body = request.get_json(force=True, silent=True) or {}
+    body = request.get_json(force=True, silent=True) or request.form.to_dict() or {}
 
     # NoSQL INJECTION (intentional): the raw, unsanitized request body is
     # passed straight into the Mongo query, allowing operator injection such
