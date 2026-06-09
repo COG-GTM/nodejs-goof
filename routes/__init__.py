@@ -11,6 +11,7 @@ import functools
 import io
 import os
 import re
+import threading
 import zipfile
 
 from bson import ObjectId
@@ -143,6 +144,11 @@ def create():
         body = request.get_json(force=True, silent=True) or {}
         item = body.get('content')
 
+    if item is None:
+        # Missing content: mirror the original, which errored out instead of
+        # silently persisting a garbage todo (str(None) -> 'None').
+        return ('Missing content', 400)
+
     img_regex = r'\!\[alt text\]\((http.*)\s\".*'
     if isinstance(item, str) and re.match(img_regex, item):
         url = re.match(img_regex, item).group(1)
@@ -272,6 +278,7 @@ users_chat = [
 
 messages = []
 _state = {'last_id': 1}
+_chat_lock = threading.Lock()
 
 
 def find_user(auth):
@@ -317,14 +324,16 @@ def chat_add():
     }
 
     deep_merge(message, body.get('message') or {})
-    deep_merge(message, {
-        'id': _state['last_id'],
-        'timestamp': int(datetime.datetime.utcnow().timestamp() * 1000),
-        'userName': user['name'],
-    })
-    _state['last_id'] += 1
 
-    messages.append(message)
+    with _chat_lock:
+        deep_merge(message, {
+            'id': _state['last_id'],
+            'timestamp': int(datetime.datetime.utcnow().timestamp() * 1000),
+            'userName': user['name'],
+        })
+        _state['last_id'] += 1
+        messages.append(message)
+
     return jsonify({'ok': True})
 
 
@@ -337,5 +346,6 @@ def chat_delete():
     if not user or not user.get('canDelete'):
         return jsonify({'ok': False, 'error': 'Access denied'}), 403
 
-    messages = [m for m in messages if m.get('id') != body.get('messageId')]
+    with _chat_lock:
+        messages = [m for m in messages if m.get('id') != body.get('messageId')]
     return jsonify({'ok': True})
