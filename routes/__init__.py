@@ -94,7 +94,11 @@ def login():
 
 @main_bp.route('/login', methods=['POST'])
 def login_handler():
-    body = _json_body()
+    # Read JSON first so the NoSQL-injection path is preserved (the body can hold
+    # Mongo operators like {"$gt": ""}); fall back to the urlencoded form so the
+    # HTML login form works too. app.js registers both bodyParser.json() and
+    # urlencoded(), so the original req.body accepted either content type.
+    body = _json_body() or request.form.to_dict()
 
     # NoSQL INJECTION (intentional): the raw, unsanitized request body is
     # passed straight into the Mongo query, allowing operator injection such
@@ -231,12 +235,11 @@ def import_todos():
         # validation, allowing writes outside the target directory.
         extracted_path = '/tmp/extracted_files'
         zipfile.ZipFile(io.BytesIO(file_bytes)).extractall(extracted_path)
+        # Mirror the original JS exactly: it sets this fallback string and then the
+        # async fs.readFile callback does `data = data` (a no-op, because the
+        # callback parameter shadows the outer variable), so backup.txt's contents
+        # are never actually used -- data always stays this literal.
         data = 'No backup.txt file found'
-        try:
-            with open('backup.txt', 'r') as f:
-                data = f.read()
-        except OSError:
-            pass
     else:
         data = file_bytes.decode('ascii', errors='replace')
 
