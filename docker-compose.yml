@@ -7,17 +7,18 @@ services:
       - DOCKER=1
     ports:
       - "3001:3001"
-      - "9229:9229"
     links:
       - goof-mongo
+      - goof-mysql
     depends_on:
       - goof-mongo
+      - goof-mysql
   goof-mongo:
     container_name: goof-mongo
     image: mongo:3
     ports:
       - "27017:27017"
-  good-mysql:
+  goof-mysql:
     container_name: goof-mysql
     image: mysql:5
     environment:
