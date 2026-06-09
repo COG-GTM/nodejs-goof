@@ -6,9 +6,11 @@ import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from datetime import datetime  # noqa: E402
+
 from app import app as flask_app  # noqa: E402
 from goof.routes.auth import _is_email  # noqa: E402
-from goof.routes.todos import parse  # noqa: E402
+from goof.routes.todos import _moment_format, parse  # noqa: E402
 
 
 @pytest.fixture()
@@ -68,6 +70,20 @@ def test_parse_reminder_days():
 
 def test_parse_no_reminder():
     assert parse("just a plain todo") == "just a plain todo"
+
+
+def test_parse_reminder_milliseconds():
+    # Regression: "ms" must be recognized as milliseconds, not silently dropped.
+    assert parse("ping in 500 ms") == "ping [500ms]"
+
+
+def test_moment_format_no_token_corruption():
+    # Regression: single-pass replacement must not corrupt %A/%M via later
+    # "A"->%p / "M"->%m rules. Expect a clean strftime, no literal "%%".
+    dt = datetime(2021, 3, 4, 9, 7, 0)
+    out = _moment_format(dt, "dddd, MMMM D, YYYY h:mm A")
+    assert "%%" not in out
+    assert out == "Thursday, March 04, 2021 h:07 AM"
 
 
 def test_about_new_renders(client):

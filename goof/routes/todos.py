@@ -25,6 +25,7 @@ _MS_UNITS = [
     ("hour", 60 * 60 * 1000, "h"),
     ("minute", 60 * 1000, "m"),
     ("second", 1000, "s"),
+    ("millisecond", 1, "ms"),
 ]
 
 
@@ -76,10 +77,16 @@ _MOMENT_TO_STRFTIME = [
 ]
 
 
+_MOMENT_MAP = dict(_MOMENT_TO_STRFTIME)
+# Match longest tokens first so e.g. "dddd" wins over "ddd", and replace every
+# token in a single pass so replacement output (like "%A") is never re-scanned.
+_MOMENT_RE = re.compile(
+    "|".join(re.escape(k) for k in sorted(_MOMENT_MAP, key=len, reverse=True))
+)
+
+
 def _moment_format(dt, fmt):
-    out = fmt
-    for token, repl in _MOMENT_TO_STRFTIME:
-        out = out.replace(token, repl)
+    out = _MOMENT_RE.sub(lambda m: _MOMENT_MAP[m.group()], fmt)
     try:
         return dt.strftime(out)
     except ValueError:
