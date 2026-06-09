@@ -159,8 +159,10 @@ def create():
         return ('Missing content', 400)
 
     img_regex = r'\!\[alt text\]\((http.*)\s\".*'
-    if isinstance(item, str) and re.match(img_regex, item):
-        url = re.match(img_regex, item).group(1)
+    # re.search (not re.match) to mirror JS String.prototype.match, which
+    # matches anywhere in the string rather than only at the start.
+    if isinstance(item, str) and re.search(img_regex, item):
+        url = re.search(img_regex, item).group(1)
         print('found img: ' + url)
 
         # COMMAND INJECTION (intentional): the extracted URL is concatenated
