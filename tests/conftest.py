@@ -145,13 +145,23 @@ def _rebind_collection(monkeypatch, attr, fake):
     was imported as a module-level name.
 
     Handlers that did ``from models.mongo import users, todos`` hold their own
-    reference, so patching ``models.mongo.users`` alone is not enough. We walk
-    the relevant modules and rebind the name wherever it currently points at a
-    non-module object (so we never clobber the ``routes.users`` *submodule*).
+    reference, so patching ``models.mongo.users`` alone is not enough. We scan
+    every already-imported ``app``/``models``/``routes`` module and rebind the
+    name wherever it currently points at a non-module object (so we never
+    clobber the ``routes.users`` *submodule*). Scanning ``sys.modules`` rather
+    than a hardcoded list means any future handler submodule
+    (e.g. ``routes.main``, ``routes.todos``) is covered automatically.
     """
-    for mod_name in ("models.mongo", "routes", "routes.users"):
-        mod = sys.modules.get(mod_name)
+    for mod_name, mod in list(sys.modules.items()):
         if mod is None:
+            continue
+        if not (
+            mod_name == "app"
+            or mod_name == "models"
+            or mod_name == "routes"
+            or mod_name.startswith("models.")
+            or mod_name.startswith("routes.")
+        ):
             continue
         current = getattr(mod, attr, None)
         if current is None or isinstance(current, types.ModuleType):
@@ -229,7 +239,9 @@ def app(monkeypatch, fake_users, fake_todos):
         monkeypatch.setattr(mysql, "SessionLocal", MagicMock(), raising=False)
 
     # Import the app fresh so create_app() runs with the patches in place.
-    sys.modules.pop("app", None)
+    # Use monkeypatch.delitem so the original sys.modules['app'] entry is
+    # restored on teardown and no stale (mock-wired) module leaks between tests.
+    monkeypatch.delitem(sys.modules, "app", raising=False)
     try:
         app_module = importlib.import_module("app")
     except Exception as exc:  # pragma: no cover - depends on integration state
