@@ -26,7 +26,10 @@ from flask import (
     session,
 )
 
-from models.mongo import todos, users
+# Import the users collection under an alias: the ``routes`` package also has a
+# ``routes.users`` submodule, and importing it would otherwise shadow a global
+# named ``users`` in this module's namespace.
+from models.mongo import todos, users as mongo_users
 
 main_bp = Blueprint('main', __name__)
 
@@ -61,9 +64,15 @@ def is_blank(value):
     return not value or re.match(r'^\s*$', value) is not None
 
 
+def _with_id(todo):
+    """Expose the Mongo ``_id`` as a string ``id`` for the templates."""
+    todo['id'] = str(todo.get('_id', ''))
+    return todo
+
+
 @main_bp.route('/', methods=['GET'])
 def index():
-    todos_list = list(todos.find({}).sort('updated_at', -1))
+    todos_list = [_with_id(t) for t in todos.find({}).sort('updated_at', -1)]
     return render_template(
         'index.html',
         title='Patch TODO List',
@@ -89,7 +98,7 @@ def login_handler():
     # NoSQL INJECTION (intentional): the raw, unsanitized request body is
     # passed straight into the Mongo query, allowing operator injection such
     # as {"username": {"$gt": ""}, "password": {"$gt": ""}}.
-    user = users.find_one({
+    user = mongo_users.find_one({
         'username': body.get('username'),
         'password': body.get('password'),
     })
@@ -182,7 +191,7 @@ def destroy(id):
 
 @main_bp.route('/edit/<id>', methods=['GET'])
 def edit(id):
-    todos_list = list(todos.find({}).sort('updated_at', -1))
+    todos_list = [_with_id(t) for t in todos.find({}).sort('updated_at', -1)]
     return render_template(
         'edit.html',
         title='TODO',
