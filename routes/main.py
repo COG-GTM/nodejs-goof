@@ -137,7 +137,7 @@ def login():
         "admin.html",
         title="Admin Access",
         granted=False,
-        redirectPage=request.args.get("redirectPage"),
+        redirectPage=request.args.get("redirectPage", ""),
     )
 
 
