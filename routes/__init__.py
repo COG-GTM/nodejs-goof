@@ -61,6 +61,17 @@ def is_blank(value):
     return not value or re.match(r'^\s*$', value) is not None
 
 
+def _json_body():
+    """Return the parsed JSON body if it is an object, else an empty dict.
+
+    Mirrors the original JS, where property access on a non-object body (number,
+    string, array, ...) yields ``undefined`` instead of raising, so a malformed
+    body never produces a 500.
+    """
+    body = request.get_json(force=True, silent=True)
+    return body if isinstance(body, dict) else {}
+
+
 @main_bp.route('/', methods=['GET'])
 def index():
     todos_list = list(todos.find({}).sort('updated_at', -1))
@@ -84,7 +95,7 @@ def login():
 
 @main_bp.route('/login', methods=['POST'])
 def login_handler():
-    body = request.get_json(force=True, silent=True) or {}
+    body = _json_body()
 
     # NoSQL INJECTION (intentional): the raw, unsanitized request body is
     # passed straight into the Mongo query, allowing operator injection such
@@ -126,7 +137,7 @@ def get_account_details():
 def save_account_details():
     # Loose handling that mirrors the original save_account_details: the
     # submitted profile is rendered back as-is without strict validation.
-    profile = request.get_json(force=True, silent=True) or request.form.to_dict()
+    profile = _json_body() or request.form.to_dict()
     return render_template('account.html', **profile)
 
 
@@ -141,8 +152,7 @@ def logout():
 def create():
     item = request.form.get('content')
     if item is None:
-        body = request.get_json(force=True, silent=True) or {}
-        item = body.get('content')
+        item = _json_body().get('content')
 
     if item is None:
         # Missing content: mirror the original, which errored out instead of
@@ -197,8 +207,7 @@ def edit(id):
 def update(id):
     content = request.form.get('content')
     if content is None:
-        body = request.get_json(force=True, silent=True) or {}
-        content = body.get('content')
+        content = _json_body().get('content')
 
     todos.update_one(
         {'_id': ObjectId(id)},
@@ -284,7 +293,8 @@ _chat_lock = threading.Lock()
 
 
 def find_user(auth):
-    auth = auth or {}
+    if not isinstance(auth, dict):
+        auth = {}
     for u in users_chat:
         if u.get('name') == auth.get('name') and u.get('password') == auth.get('password'):
             return u
@@ -314,8 +324,8 @@ def chat_get():
 
 @main_bp.route('/chat', methods=['PUT'])
 def chat_add():
-    body = request.get_json(force=True, silent=True) or {}
-    user = find_user(body.get('auth') or {})
+    body = _json_body()
+    user = find_user(body.get('auth'))
 
     if not user:
         return jsonify({'ok': False, 'error': 'Access denied'}), 403
@@ -325,7 +335,12 @@ def chat_add():
         'icon': '\U0001f44b',
     }
 
-    deep_merge(message, body.get('message') or {})
+    # Only merge object messages (mirrors lodash.merge, which ignores non-object
+    # sources). A dict here still flows through unfiltered -> prototype-pollution
+    # analogue is preserved.
+    msg_source = body.get('message')
+    if isinstance(msg_source, dict):
+        deep_merge(message, msg_source)
 
     with _chat_lock:
         deep_merge(message, {
@@ -342,8 +357,8 @@ def chat_add():
 @main_bp.route('/chat', methods=['DELETE'])
 def chat_delete():
     global messages
-    body = request.get_json(force=True, silent=True) or {}
-    user = find_user(body.get('auth') or {})
+    body = _json_body()
+    user = find_user(body.get('auth'))
 
     if not user or not user.get('canDelete'):
         return jsonify({'ok': False, 'error': 'Access denied'}), 403
