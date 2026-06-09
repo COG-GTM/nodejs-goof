@@ -5,7 +5,6 @@ intentional vulnerabilities (NoSQL injection, open redirect, command
 injection, zip slip, SSTI, prototype-pollution analogue) are PRESERVED on
 purpose for security education. Do NOT add sanitization/validation/escaping.
 """
-import base64
 import datetime
 import functools
 import io
@@ -177,8 +176,10 @@ def create():
         'updated_at': datetime.datetime.utcnow(),
     })
 
-    content_b64 = base64.b64encode(str(item).encode()).decode()
-    resp = make_response(content_b64, 302)
+    # Mirror the original JS: ``todo.content.toString('base64')`` calls
+    # String.prototype.toString, which ignores the 'base64' argument and returns
+    # the plain string unchanged (only Buffer.prototype.toString encodes).
+    resp = make_response(str(item), 302)
     resp.headers['Location'] = '/'
     return resp
 
@@ -319,7 +320,9 @@ def deep_merge(target, source):
 
 @main_bp.route('/chat', methods=['GET'])
 def chat_get():
-    return jsonify(messages)
+    with _chat_lock:
+        snapshot = list(messages)
+    return jsonify(snapshot)
 
 
 @main_bp.route('/chat', methods=['PUT'])
