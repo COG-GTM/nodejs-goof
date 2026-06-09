@@ -1,13 +1,11 @@
-# FROM node:6-stretch
-FROM node:18.13.0
+FROM python:3.12-slim
 
-RUN mkdir /usr/src/goof
-RUN mkdir /tmp/extracted_files
-COPY . /usr/src/goof
+RUN mkdir -p /usr/src/goof /tmp/extracted_files
 WORKDIR /usr/src/goof
 
-RUN npm update
-RUN npm install
+COPY requirements.txt /usr/src/goof/
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . /usr/src/goof
 EXPOSE 3001
-EXPOSE 9229
-ENTRYPOINT ["npm", "start"]
+ENTRYPOINT ["python", "app.py"]
