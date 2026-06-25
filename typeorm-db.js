@@ -3,7 +3,7 @@ var EntitySchema = typeorm.EntitySchema;
 
 const Users = require("./entity/Users")
 
-typeorm.createConnection({
+const AppDataSource = new typeorm.DataSource({
   name: "mysql",
   type: "mysql",
   host: "localhost",
@@ -16,11 +16,11 @@ typeorm.createConnection({
   entities: [
     new EntitySchema(Users)
   ]
-}).then(() => {
+});
 
-  const dbConnection = typeorm.getConnection('mysql')
+AppDataSource.initialize().then(() => {
 
-  const repo = dbConnection.getRepository("Users")
+  const repo = AppDataSource.getRepository("Users")
   return repo
 }).then((repo) => {
 
@@ -44,3 +44,5 @@ typeorm.createConnection({
   console.error('failed connecting and seeding users to the MySQL database')
   console.error(err)
 })
+
+module.exports = AppDataSource;
