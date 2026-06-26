@@ -44,12 +44,16 @@ console.log("Using Mongo URI " + mongoUri);
 
 mongoose.connect(mongoUri);
 
+// Admin seed credentials. Override via env vars; the fallback is for local dev only.
+const adminUsername = process.env.ADMIN_USERNAME || 'admin@snyk.io';
+const adminPassword = process.env.ADMIN_PASSWORD || 'SuperSecretPassword';
+
 User = mongoose.model('User');
-User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
+User.find({ username: adminUsername }).exec(function (err, users) {
   console.log(users);
   if (users.length === 0) {
     console.log('no admin');
-    new User({ username: 'admin@snyk.io', password: 'SuperSecretPassword' }).save(function (err, user, count) {
+    new User({ username: adminUsername, password: adminPassword }).save(function (err, user, count) {
       if (err) {
         console.log('error saving admin user');
       }
