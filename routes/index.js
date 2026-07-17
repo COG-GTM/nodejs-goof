@@ -103,8 +103,17 @@ exports.save_account_details = function(req, res, next) {
     profile.firstname = validator.rtrim(profile.firstname)
     profile.lastname = validator.rtrim(profile.lastname)
 
-    // render the view
-    return res.render('account.hbs', profile)
+    // render the view using only the validated fields. Passing the raw
+    // user-controlled req.body would let an attacker inject view-engine
+    // options (e.g. an hbs `layout`/`partials` key) that resolve to an
+    // arbitrary filesystem path (path traversal).
+    return res.render('account.hbs', {
+      email: profile.email,
+      phone: profile.phone,
+      firstname: profile.firstname,
+      lastname: profile.lastname,
+      country: profile.country,
+    })
   } else {
     // if input validation fails, we just render the view as is
     console.log('error in form details')
