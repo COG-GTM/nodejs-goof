@@ -57,7 +57,11 @@ function adminLoginSuccess(redirectPage, session, username, res) {
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (redirectPage) {
+  // Only allow redirects to local paths to prevent open redirects.
+  // The pattern requires a leading "/" not followed by another "/" or "\",
+  // rejecting absolute URLs (https://evil.com), protocol-relative URLs
+  // (//evil.com) and backslash variants (/\evil.com).
+  if (typeof redirectPage === 'string' && /^\/[^/\\]/.test(redirectPage)) {
       return res.redirect(redirectPage)
   } else {
       return res.redirect('/admin')
