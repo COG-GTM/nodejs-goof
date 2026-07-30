@@ -51,14 +51,18 @@ exports.loginHandler = function (req, res, next) {
   }
 };
 
+// Only these application-local paths may be used as a post-login redirect target.
+var ALLOWED_REDIRECT_PAGES = ['/admin', '/login', '/'];
+
 function adminLoginSuccess(redirectPage, session, username, res) {
   session.loggedIn = 1
 
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (redirectPage) {
-      return res.redirect(redirectPage)
+  var redirectIndex = ALLOWED_REDIRECT_PAGES.indexOf(redirectPage)
+  if (redirectIndex !== -1) {
+      return res.redirect(ALLOWED_REDIRECT_PAGES[redirectIndex])
   } else {
       return res.redirect('/admin')
   }
