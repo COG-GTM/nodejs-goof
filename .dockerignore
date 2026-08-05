@@ -5,3 +5,7 @@ npm-debug.log
 exploits
 tests
 sarif.json
+.env
+.env.*
+*.pem
+*.key

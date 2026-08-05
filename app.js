@@ -47,6 +47,9 @@ app.use(helmet());
 app.use(logger('dev'));
 app.use(methodOverride());
 app.use(cookieParser());
+// Static assets are served before the session and CSRF middleware so that they
+// do not touch the session or rotate cookies.
+app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use(session({
   secret: sessionSecret,
   name: 'connect.sid',
@@ -56,12 +59,19 @@ app.use(session({
 }))
 app.use(bodyParser.json({ limit: '100kb' }));
 app.use(bodyParser.urlencoded({ extended: false, limit: '100kb' }));
-// Uploads are kept in memory and capped in size; the parser runs before the
-// CSRF check so that the token of a multipart form can be validated.
-app.use(multer({
+// Uploads are kept in memory and capped in size. The parser has to run before
+// the CSRF check so that the token of a multipart form can be validated, but it
+// is restricted to the one route that accepts a file.
+var uploadImportFile = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024, files: 1 }
-}).single('importFile'));
+}).single('importFile');
+app.use(function (req, res, next) {
+  if (req.method === 'POST' && req.path === '/import') {
+    return uploadImportFile(req, res, next);
+  }
+  next();
+});
 
 // Throttle every request so that expensive operations (rendering, archive
 // extraction, image identification) cannot be used to exhaust the server.
@@ -110,9 +120,6 @@ app.get('/chat', limiter, routes.chat.get);
 app.put('/chat', limiter, routes.chat.add);
 app.delete('/chat', limiter, routes.chat.delete);
 app.use('/users', routesUsers)
-
-// Static
-app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // Add the option to output (sanitized!) markdown
 marked.setOptions({ sanitize: true, silent: true });

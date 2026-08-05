@@ -17,6 +17,8 @@ var AdmZip = require('adm-zip');
 var fs = require('fs');
 var os = require('os');
 var path = require('path');
+var dns = require('dns');
+var net = require('net');
 
 var MAX_IMPORT_LINES = 1000;
 
@@ -71,7 +73,7 @@ exports.loginHandler = function (req, res, next) {
 // target, otherwise the login form can be used to redirect to an attacker
 // controlled site (open redirect).
 function safeRedirectPage(redirectPage) {
-  if (typeof redirectPage === 'string' && /^\/[^/\\]/.test(redirectPage)) {
+  if (typeof redirectPage === 'string' && /^\/([^/\\].*)?$/.test(redirectPage)) {
     return redirectPage;
   }
   return '/admin';
@@ -111,6 +113,14 @@ exports.get_account_details = [limiter, function(req, res, next) {
 exports.save_account_details = [limiter, function(req, res, next) {
   // get the profile details from the JSON
 	const profile = req.body
+  // the validators below assert on their argument, so anything but a string
+  // has to be rejected up front
+  const fields = ['email', 'phone', 'firstname', 'lastname', 'country']
+  if (fields.some(function (field) { return typeof profile[field] !== 'string' })) {
+    console.log('error in form details')
+    return res.render('account.hbs', { layout: false })
+  }
+
   // validate the input
   if (validator.isEmail(profile.email, { allow_display_name: true })
     // allow_display_name allows us to receive input as:
@@ -183,6 +193,53 @@ function isSafeImageUrl(url) {
   }
 }
 
+// Addresses that are only reachable from the server itself, its network or a
+// cloud metadata service must not be requested on behalf of a client.
+function isInternalAddress(address) {
+  var normalized = address.toLowerCase().split('%')[0];
+
+  if (normalized.startsWith('::ffff:')) {
+    normalized = normalized.slice(7);
+  }
+
+  if (net.isIPv4(normalized)) {
+    var octets = normalized.split('.').map(Number);
+    return octets[0] === 0 ||
+      octets[0] === 10 ||
+      octets[0] === 127 ||
+      (octets[0] === 100 && octets[1] >= 64 && octets[1] <= 127) ||
+      (octets[0] === 169 && octets[1] === 254) ||
+      (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+      (octets[0] === 192 && octets[1] === 168) ||
+      octets[0] >= 224;
+  }
+
+  return normalized === '::' ||
+    normalized === '::1' ||
+    normalized.startsWith('fc') ||
+    normalized.startsWith('fd') ||
+    normalized.startsWith('fe80');
+}
+
+// Resolving the host up front keeps the obvious server-side request forgery
+// targets (loopback, private ranges, link-local metadata services) out of reach.
+function resolvesToPublicHost(url, callback) {
+  var hostname = new URL(url).hostname.replace(/^\[|\]$/g, '');
+
+  if (net.isIP(hostname)) {
+    return callback(!isInternalAddress(hostname));
+  }
+
+  dns.lookup(hostname, { all: true }, function (err, addresses) {
+    if (err || addresses.length === 0) {
+      return callback(false);
+    }
+    callback(addresses.every(function (entry) {
+      return !isInternalAddress(entry.address);
+    }));
+  });
+}
+
 exports.create = [limiter, function (req, res, next) {
   // console.log('req.body: ' + JSON.stringify(req.body));
 
@@ -196,11 +253,17 @@ exports.create = [limiter, function (req, res, next) {
       return res.status(400).send('Invalid image URL');
     }
 
-    execFile('identify', [url], function (err, stdout, stderr) {
-      console.log(err);
-      if (err !== null) {
-        console.log('Error (' + err + '):' + stderr);
+    resolvesToPublicHost(url, function (isPublic) {
+      if (!isPublic) {
+        console.log('refusing to identify an image hosted on an internal address');
+        return;
       }
+
+      execFile('identify', [url], function (err, stdout, stderr) {
+        if (err !== null) {
+          console.log('Error (' + err + '):' + stderr);
+        }
+      });
     });
 
   } else {
@@ -326,7 +389,11 @@ exports.import = [limiter, function (req, res, next) {
         then(function (todo) {
           console.log('added ' + todo);
         }).
-        catch(next);
+        catch(function (err) {
+          // The redirect below has already ended the response, so a failing
+          // line is logged instead of being passed to the error handler.
+          console.log('failed to import an item: ' + err);
+        });
     }
   });
 
