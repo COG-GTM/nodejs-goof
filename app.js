@@ -10,6 +10,8 @@ var st = require('st');
 var crypto = require('crypto');
 var express = require('express');
 var http = require('http');
+var https = require('https');
+var fs = require('fs');
 var path = require('path');
 var ejsEngine = require('ejs-locals');
 var bodyParser = require('body-parser');
@@ -26,10 +28,16 @@ var cons = require('consolidate');
 const hbs = require('hbs')
 
 var app = express();
+app.disable('x-powered-by');
 var routes = require('./routes');
 var routesUsers = require('./routes/users.js')
 
 // all environments
+var sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+var tlsKeyPath = process.env.TLS_KEY;
+var tlsCertPath = process.env.TLS_CERT;
+var useHttps = Boolean(tlsKeyPath && tlsCertPath);
+
 app.set('port', process.env.PORT || 3001);
 app.engine('ejs', ejsEngine);
 app.engine('dust', cons.dust);
@@ -40,9 +48,14 @@ app.set('view engine', 'ejs');
 app.use(logger('dev'));
 app.use(methodOverride());
 app.use(session({
-  secret: 'keyboard cat',
+  secret: sessionSecret,
   name: 'connect.sid',
-  cookie: { path: '/' }
+  cookie: {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: useHttps || process.env.COOKIE_SECURE === 'true'
+  }
 }))
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -80,9 +93,13 @@ if (app.get('env') == 'development') {
   app.use(errorHandler());
 }
 
-var token = 'SECRET_TOKEN_f8ed84e8f41e4146403dd4a6bbcea5e418d23a9';
-console.log('token: ' + token);
+var token = process.env.API_TOKEN || crypto.randomBytes(20).toString('hex');
+console.log('token configured: ' + (process.env.API_TOKEN ? 'from environment' : 'generated for this process'));
 
-http.createServer(app).listen(app.get('port'), function () {
-  console.log('Express server listening on port ' + app.get('port'));
+var server = useHttps
+  ? https.createServer({ key: fs.readFileSync(tlsKeyPath), cert: fs.readFileSync(tlsCertPath) }, app)
+  : http.createServer(app);
+
+server.listen(app.get('port'), function () {
+  console.log('Express server listening on port ' + app.get('port') + ' over ' + (useHttps ? 'https' : 'http'));
 });
