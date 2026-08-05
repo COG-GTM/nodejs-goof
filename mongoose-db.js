@@ -1,5 +1,6 @@
 var mongoose = require('mongoose');
 var cfenv = require("cfenv");
+var crypto = require('crypto');
 var Schema = mongoose.Schema;
 
 var Todo = new Schema({
@@ -44,14 +45,24 @@ console.log("Using Mongo URI " + mongoUri);
 
 mongoose.connect(mongoUri);
 
+// Seeded admin credentials come from the environment. When ADMIN_PASSWORD is not
+// set a random password is generated and printed once so local dev still works.
+var adminUsername = process.env.ADMIN_USER || 'admin@snyk.io';
+var adminPassword = process.env.ADMIN_PASSWORD || crypto.randomBytes(16).toString('hex');
+
 User = mongoose.model('User');
-User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
+User.find({ username: adminUsername }).exec(function (err, users) {
   console.log(users);
   if (users.length === 0) {
     console.log('no admin');
-    new User({ username: 'admin@snyk.io', password: 'SuperSecretPassword' }).save(function (err, user, count) {
+    new User({ username: adminUsername, password: adminPassword }).save(function (err, user, count) {
       if (err) {
         console.log('error saving admin user');
+        return;
+      }
+      if (!process.env.ADMIN_PASSWORD) {
+        console.log('Seeded admin user ' + adminUsername + ' with generated password: ' + adminPassword);
+        console.log('Set ADMIN_USER / ADMIN_PASSWORD to choose the seeded credentials.');
       }
     });
   }

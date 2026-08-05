@@ -1,4 +1,8 @@
 const assert = require('assert)')
+const crypto = require('crypto')
+
+// Built at runtime so no password literal is committed.
+const testPassword = process.env.TEST_PASSWORD || crypto.randomBytes(12).toString('hex')
 
 describe('Component Tests', () => {
   describe('PasswordComponent', () => {
@@ -20,19 +24,18 @@ describe('Component Tests', () => {
 
     test('should call Auth.changePassword when passwords match', () => {
       // GIVEN
-      // deepcode ignore NoHardcodedPasswords/test: <please specify a reason of ignoring this>
-      comp.password = comp.confirmPassword = 'myPassword';
+      comp.password = comp.confirmPassword = testPassword;
 
       // WHEN
       comp.changePassword();
 
       // THEN
-      assert(service.save).toHaveBeenCalledWith('myPassword');
+      assert(service.save).toHaveBeenCalledWith(testPassword);
     });
 
     test('should set success to OK upon success', function() {
       // GIVEN
-      comp.password = comp.confirmPassword = 'myPassword';
+      comp.password = comp.confirmPassword = testPassword;
 
       // WHEN
       comp.changePassword();
@@ -45,7 +48,7 @@ describe('Component Tests', () => {
 
     test('should notify of error if change password fails', function() {
       // GIVEN
-      comp.password = comp.confirmPassword = 'myPassword';
+      comp.password = comp.confirmPassword = testPassword;
 
       // WHEN
       comp.changePassword();
