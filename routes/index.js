@@ -8,48 +8,76 @@ var ms = require('ms');
 var streamBuffers = require('stream-buffers');
 var readline = require('readline');
 var moment = require('moment');
-var exec = require('child_process').exec;
+var execFile = require('child_process').execFile;
 var validator = require('validator');
 
 // zip-slip
 var fileType = require('file-type');
 var AdmZip = require('adm-zip');
 var fs = require('fs');
+var os = require('os');
+var path = require('path');
+var dns = require('dns');
+var net = require('net');
+
+var MAX_IMPORT_LINES = 1000;
 
 // prototype-pollution
 var _ = require('lodash');
 
-exports.index = function (req, res, next) {
+// Expensive handlers (rendering, database access, archive extraction) are
+// throttled individually on top of the global limiter in app.js.
+var { rateLimit } = require('express-rate-limit');
+var limiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 100,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false
+});
+
+exports.index = [limiter, function (req, res, next) {
   Todo.
     find({}).
     sort('-updated_at').
-    exec(function (err, todos) {
-      if (err) return next(err);
-
+    then(function (todos) {
       res.render('index', {
         title: 'Patch TODO List',
         subhead: 'Vulnerabilities at their best',
         todos: todos,
       });
-    });
-};
+    }).
+    catch(next);
+}];
 
 exports.loginHandler = function (req, res, next) {
-  if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
-      if (users.length > 0) {
-        const redirectPage = req.body.redirectPage
-        const session = req.session
-        const username = req.body.username
-        return adminLoginSuccess(redirectPage, session, username, res)
-      } else {
-        return res.status(401).send()
-      }
-    });
-  } else {
-    return res.status(401).send()
+  var username = req.body.username;
+  var password = req.body.password;
+
+  // Only accept scalar credentials so that query operators cannot be smuggled
+  // in through a JSON body (NoSQL injection).
+  if (typeof username !== 'string' || typeof password !== 'string' || !validator.isEmail(username)) {
+    return res.status(401).send();
   }
+
+  User.find({ username: { $eq: String(username) }, password: { $eq: String(password) } }).
+    then(function (users) {
+      if (users.length > 0) {
+        return adminLoginSuccess(req.body.redirectPage, req.session, username, res);
+      }
+      return res.status(401).send();
+    }).
+    catch(next);
 };
+
+// Only same-site, non protocol-relative paths are accepted as a redirect
+// target, otherwise the login form can be used to redirect to an attacker
+// controlled site (open redirect).
+function safeRedirectPage(redirectPage) {
+  if (typeof redirectPage === 'string' && /^\/([^/\\].*)?$/.test(redirectPage)) {
+    return redirectPage;
+  }
+  return '/admin';
+}
 
 function adminLoginSuccess(redirectPage, session, username, res) {
   session.loggedIn = 1
@@ -57,38 +85,42 @@ function adminLoginSuccess(redirectPage, session, username, res) {
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (redirectPage) {
-      return res.redirect(redirectPage)
-  } else {
-      return res.redirect('/admin')
-  }
+  return res.redirect(safeRedirectPage(redirectPage))
 }
 
-exports.login = function (req, res, next) {
+exports.login = [limiter, function (req, res, next) {
   return res.render('admin', {
     title: 'Admin Access',
     granted: false,
-    redirectPage: req.query.redirectPage
+    redirectPage: safeRedirectPage(req.query.redirectPage)
   });
-};
+}];
 
-exports.admin = function (req, res, next) {
+exports.admin = [limiter, function (req, res, next) {
   return res.render('admin', {
     title: 'Admin Access Granted',
     granted: true,
   });
-};
+}];
 
-exports.get_account_details = function(req, res, next) {
+exports.get_account_details = [limiter, function(req, res, next) {
   // @TODO need to add a database call to get the profile from the database
   // and provide it to the view to display
-  const profile = {}
+  const profile = { layout: false }
  	return res.render('account.hbs', profile)
-}
+}]
 
-exports.save_account_details = function(req, res, next) {
+exports.save_account_details = [limiter, function(req, res, next) {
   // get the profile details from the JSON
 	const profile = req.body
+  // the validators below assert on their argument, so anything but a string
+  // has to be rejected up front
+  const fields = ['email', 'phone', 'firstname', 'lastname', 'country']
+  if (fields.some(function (field) { return typeof profile[field] !== 'string' })) {
+    console.log('error in form details')
+    return res.render('account.hbs', { layout: false })
+  }
+
   // validate the input
   if (validator.isEmail(profile.email, { allow_display_name: true })
     // allow_display_name allows us to receive input as:
@@ -102,15 +134,16 @@ exports.save_account_details = function(req, res, next) {
     // trim any extra spaces on the right of the name
     profile.firstname = validator.rtrim(profile.firstname)
     profile.lastname = validator.rtrim(profile.lastname)
+    profile.layout = false
 
     // render the view
     return res.render('account.hbs', profile)
   } else {
     // if input validation fails, we just render the view as is
     console.log('error in form details')
-    return res.render('account.hbs')
+    return res.render('account.hbs', { layout: false })
   }
-}
+}]
 
 exports.isLoggedIn = function (req, res, next) {
   if (req.session.loggedIn === 1) {
@@ -149,20 +182,88 @@ function parse(todo) {
   return t;
 }
 
-exports.create = function (req, res, next) {
+// The image URL is passed to an external binary, so it has to be a plain
+// http(s) URL and it is passed as an argument instead of through a shell.
+function isSafeImageUrl(url) {
+  try {
+    var parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch (e) {
+    return false;
+  }
+}
+
+// Addresses that are only reachable from the server itself, its network or a
+// cloud metadata service must not be requested on behalf of a client.
+function isInternalAddress(address) {
+  var normalized = address.toLowerCase().split('%')[0];
+
+  if (normalized.startsWith('::ffff:')) {
+    normalized = normalized.slice(7);
+  }
+
+  if (net.isIPv4(normalized)) {
+    var octets = normalized.split('.').map(Number);
+    return octets[0] === 0 ||
+      octets[0] === 10 ||
+      octets[0] === 127 ||
+      (octets[0] === 100 && octets[1] >= 64 && octets[1] <= 127) ||
+      (octets[0] === 169 && octets[1] === 254) ||
+      (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+      (octets[0] === 192 && octets[1] === 168) ||
+      octets[0] >= 224;
+  }
+
+  return normalized === '::' ||
+    normalized === '::1' ||
+    normalized.startsWith('fc') ||
+    normalized.startsWith('fd') ||
+    normalized.startsWith('fe80');
+}
+
+// Resolving the host up front keeps the obvious server-side request forgery
+// targets (loopback, private ranges, link-local metadata services) out of reach.
+function resolvesToPublicHost(url, callback) {
+  var hostname = new URL(url).hostname.replace(/^\[|\]$/g, '');
+
+  if (net.isIP(hostname)) {
+    return callback(!isInternalAddress(hostname));
+  }
+
+  dns.lookup(hostname, { all: true }, function (err, addresses) {
+    if (err || addresses.length === 0) {
+      return callback(false);
+    }
+    callback(addresses.every(function (entry) {
+      return !isInternalAddress(entry.address);
+    }));
+  });
+}
+
+exports.create = [limiter, function (req, res, next) {
   // console.log('req.body: ' + JSON.stringify(req.body));
 
   var item = req.body.content;
-  var imgRegex = /\!\[alt text\]\((http.*)\s\".*/;
+  var imgRegex = /\!\[alt text\]\((http[^\s"]*)\s\".*/;
   if (typeof (item) == 'string' && item.match(imgRegex)) {
     var url = item.match(imgRegex)[1];
     console.log('found img: ' + url);
 
-    exec('identify ' + url, function (err, stdout, stderr) {
-      console.log(err);
-      if (err !== null) {
-        console.log('Error (' + err + '):' + stderr);
+    if (!isSafeImageUrl(url)) {
+      return res.status(400).send('Invalid image URL');
+    }
+
+    resolvesToPublicHost(url, function (isPublic) {
+      if (!isPublic) {
+        console.log('refusing to identify an image hosted on an internal address');
+        return;
       }
+
+      execFile('identify', [url], function (err, stdout, stderr) {
+        if (err !== null) {
+          console.log('Error (' + err + '):' + stderr);
+        }
+      });
     });
 
   } else {
@@ -172,61 +273,51 @@ exports.create = function (req, res, next) {
   new Todo({
     content: item,
     updated_at: Date.now(),
-  }).save(function (err, todo, count) {
-    if (err) return next(err);
+  }).save().
+    then(function (todo) {
+      res.setHeader('Location', '/');
+      res.status(302).send(todo.content.toString('base64'));
+    }).
+    catch(next);
+}];
 
-    /*
-    res.setHeader('Data', todo.content.toString('base64'));
-    res.redirect('/');
-    */
+exports.destroy = [limiter, function (req, res, next) {
+  Todo.findByIdAndDelete(req.params.id).
+    then(function () {
+      res.redirect('/');
+    }).
+    catch(next);
+}];
 
-    res.setHeader('Location', '/');
-    res.status(302).send(todo.content.toString('base64'));
-
-    // res.redirect('/#' + todo.content.toString('base64'));
-  });
-};
-
-exports.destroy = function (req, res, next) {
-  Todo.findById(req.params.id, function (err, todo) {
-
-    try {
-      todo.remove(function (err, todo) {
-        if (err) return next(err);
-        res.redirect('/');
-      });
-    } catch (e) {
-    }
-  });
-};
-
-exports.edit = function (req, res, next) {
+exports.edit = [limiter, function (req, res, next) {
   Todo.
     find({}).
     sort('-updated_at').
-    exec(function (err, todos) {
-      if (err) return next(err);
-
+    then(function (todos) {
       res.render('edit', {
         title: 'TODO',
         todos: todos,
         current: req.params.id
       });
-    });
-};
+    }).
+    catch(next);
+}];
 
-exports.update = function (req, res, next) {
-  Todo.findById(req.params.id, function (err, todo) {
+exports.update = [limiter, function (req, res, next) {
+  Todo.findById(req.params.id).
+    then(function (todo) {
+      if (!todo) {
+        return res.status(404).send();
+      }
 
-    todo.content = req.body.content;
-    todo.updated_at = Date.now();
-    todo.save(function (err, todo, count) {
-      if (err) return next(err);
-
-      res.redirect('/');
-    });
-  });
-};
+      todo.content = req.body.content;
+      todo.updated_at = Date.now();
+      return todo.save().then(function () {
+        res.redirect('/');
+      });
+    }).
+    catch(next);
+}];
 
 // ** express turns the cookie key to lowercase **
 exports.current_user = function (req, res, next) {
@@ -238,33 +329,42 @@ function isBlank(str) {
   return (!str || /^\s*$/.test(str));
 }
 
-exports.import = function (req, res, next) {
-  if (!req.files) {
+exports.import = [limiter, function (req, res, next) {
+  if (!req.file) {
     res.send('No files were uploaded.');
     return;
   }
 
-  var importFile = req.files.importFile;
+  var importFile = req.file;
   var data;
-  var importedFileType = fileType(importFile.data);
+  var importedFileType = fileType(importFile.buffer);
   var zipFileExt = { ext: "zip", mime: "application/zip" };
   if (importedFileType === null) {
     importedFileType = { ext: "txt", mime: "text/plain" };
   }
   if (importedFileType["mime"] === zipFileExt["mime"]) {
-    var zip = AdmZip(importFile.data);
-    var extracted_path = "/tmp/extracted_files";
-    zip.extractAllTo(extracted_path, true);
-    data = "No backup.txt file found";
-    fs.readFile('backup.txt', 'ascii', function (err, data) {
-      if (!err) {
-        data = data;
-      }
+    var zip = new AdmZip(importFile.buffer);
+
+    // Extract into a directory of its own so that concurrent imports cannot
+    // overwrite each other, and only take the single entry we are interested
+    // in so that an archive cannot drop arbitrary files on the host.
+    var extracted_path = fs.mkdtempSync(path.join(os.tmpdir(), 'extracted_files-'));
+    var backupEntry = zip.getEntries().find(function (entry) {
+      return !entry.isDirectory && path.basename(entry.entryName) === 'backup.txt';
     });
+
+    data = "No backup.txt file found";
+    if (backupEntry) {
+      zip.extractEntryTo(backupEntry, extracted_path, false, true, false, 'backup.txt');
+      data = fs.readFileSync(path.join(extracted_path, 'backup.txt'), 'ascii');
+    }
+    fs.rmSync(extracted_path, { recursive: true, force: true });
   } else {
-    data = importFile.data.toString('ascii');
+    data = importFile.buffer.toString('ascii');
   }
-  var lines = data.split('\n');
+
+  // Cap the amount of work a single import can queue up.
+  var lines = data.split('\n').slice(0, MAX_IMPORT_LINES);
   lines.forEach(function (line) {
     var parts = line.split(',');
     var what = parts[0];
@@ -285,25 +385,32 @@ exports.import = function (req, res, next) {
       new Todo({
         content: item,
         updated_at: Date.now(),
-      }).save(function (err, todo, count) {
-        if (err) return next(err);
-        console.log('added ' + todo);
-      });
+      }).save().
+        then(function (todo) {
+          console.log('added ' + todo);
+        }).
+        catch(function (err) {
+          // The redirect below has already ended the response, so a failing
+          // line is logged instead of being passed to the error handler.
+          console.log('failed to import an item: ' + err);
+        });
     }
   });
 
   res.redirect('/');
-};
+}];
 
-exports.about_new = function (req, res, next) {
+exports.about_new = [limiter, function (req, res, next) {
   console.log(JSON.stringify(req.query));
-  return res.render("about_new.dust",
+  return res.render("about_new",
     {
+      layout: false,
       title: 'Patch TODO List',
       subhead: 'Vulnerabilities at their best',
-      device: req.query.device
+      device: req.query.device,
+      isDesktop: req.query.device === 'Desktop'
     });
-};
+}];
 
 // Prototype Pollution
 

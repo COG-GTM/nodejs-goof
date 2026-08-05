@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+.git
+.github
+exploits
+tests
+sarif.json
+.env
+.env.*
+*.pem
+*.key

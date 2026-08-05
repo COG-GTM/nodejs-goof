@@ -4,7 +4,7 @@
     <title><%= title %></title>
     <link rel='stylesheet' href='/public/css/screen.css' />
     <!--[if lt IE 9]>
-    <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
   </head>
   <body>
@@ -19,6 +19,7 @@
             action='/import' 
             method='post' 
             encType="multipart/form-data">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                 <input type="file" name="importFile" />
                 <input type='submit' value='Import!' />
         </form>		
