@@ -13,6 +13,7 @@ strong {font-weight: bold}
 
 <div id="list">
   <form action="/account_details" method="POST" accept-charset="utf-8">
+    <input type="hidden" name="_csrf" value="{{csrfToken}}" />
     <div class="item-new">
       <center>First name</center>
       <input class="input" type="text" name="firstname" value="{{firstname}}" />

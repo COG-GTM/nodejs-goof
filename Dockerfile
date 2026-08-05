@@ -1,13 +1,16 @@
-# FROM node:6-stretch
-FROM node:18.13.0
+FROM node:26.6.0-alpine3.24
 
-RUN mkdir /usr/src/goof
-RUN mkdir /tmp/extracted_files
-COPY . /usr/src/goof
+RUN mkdir -p /usr/src/goof
 WORKDIR /usr/src/goof
 
-RUN npm update
-RUN npm install
+COPY package.json package-lock.json ./
+# The package manager is only needed at build time; dropping it keeps its
+# dependency tree out of the runtime image.
+RUN npm ci --omit=dev \
+  && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx /root/.npm
+
+COPY . /usr/src/goof
+
+USER node
 EXPOSE 3001
-EXPOSE 9229
-ENTRYPOINT ["npm", "start"]
+ENTRYPOINT ["node", "app.js"]
