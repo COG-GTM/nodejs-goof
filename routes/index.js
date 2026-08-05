@@ -19,6 +19,24 @@ var fs = require('fs');
 // prototype-pollution
 var _ = require('lodash');
 
+var throttle = require('./rate-limit').throttle;
+
+var READ_LIMIT = { windowMs: 60 * 1000, max: 60 };
+var WRITE_LIMIT = { windowMs: 60 * 1000, max: 20 };
+var LOGIN_LIMIT = { windowMs: 15 * 60 * 1000, max: 10 };
+var UPLOAD_LIMIT = { windowMs: 60 * 1000, max: 5 };
+
+// Only same-origin relative paths are acceptable redirect targets.
+function safeRedirectPath(value) {
+  if (typeof value !== 'string') return '/admin';
+  var candidate = value.replace(/\\/g, '/').trim();
+  if (candidate.length === 0) return '/admin';
+  if (/[\u0000-\u001f\u007f]/.test(candidate)) return '/admin';
+  // must be a single-slash relative path: rejects http://host, //host and /\host
+  if (!/^\/[^/]/.test(candidate) && candidate !== '/') return '/admin';
+  return candidate;
+}
+
 exports.index = function (req, res, next) {
   Todo.
     find({}).
@@ -34,22 +52,27 @@ exports.index = function (req, res, next) {
     });
 };
 
-exports.loginHandler = function (req, res, next) {
-  if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
-      if (users.length > 0) {
-        const redirectPage = req.body.redirectPage
-        const session = req.session
-        const username = req.body.username
-        return adminLoginSuccess(redirectPage, session, username, res)
-      } else {
-        return res.status(401).send()
-      }
-    });
-  } else {
+exports.loginHandler = throttle(LOGIN_LIMIT, function (req, res, next) {
+  // credentials must be plain strings: anything else (e.g. {"$gt": ""}) is a
+  // query-operator injection attempt
+  if (typeof req.body.username !== 'string' || typeof req.body.password !== 'string') {
     return res.status(401).send()
   }
-};
+
+  const username = String(req.body.username)
+  const password = String(req.body.password)
+  if (!validator.isEmail(username)) {
+    return res.status(401).send()
+  }
+
+  User.find({ username: { $eq: username }, password: { $eq: password } }, function (err, users) {
+    if (err) return next(err)
+    if (users.length > 0) {
+      return adminLoginSuccess(req.body.redirectPage, req.session, username, res)
+    }
+    return res.status(401).send()
+  });
+});
 
 function adminLoginSuccess(redirectPage, session, username, res) {
   session.loggedIn = 1
@@ -57,36 +80,32 @@ function adminLoginSuccess(redirectPage, session, username, res) {
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (redirectPage) {
-      return res.redirect(redirectPage)
-  } else {
-      return res.redirect('/admin')
-  }
+  return res.redirect(safeRedirectPath(redirectPage))
 }
 
-exports.login = function (req, res, next) {
+exports.login = throttle(READ_LIMIT, function (req, res, next) {
   return res.render('admin', {
     title: 'Admin Access',
     granted: false,
     redirectPage: req.query.redirectPage
   });
-};
+});
 
-exports.admin = function (req, res, next) {
+exports.admin = throttle(READ_LIMIT, function (req, res, next) {
   return res.render('admin', {
     title: 'Admin Access Granted',
     granted: true,
   });
-};
+});
 
-exports.get_account_details = function(req, res, next) {
+exports.get_account_details = throttle(READ_LIMIT, function(req, res, next) {
   // @TODO need to add a database call to get the profile from the database
   // and provide it to the view to display
   const profile = {}
  	return res.render('account.hbs', profile)
-}
+})
 
-exports.save_account_details = function(req, res, next) {
+exports.save_account_details = throttle(WRITE_LIMIT, function(req, res, next) {
   // get the profile details from the JSON
 	const profile = req.body
   // validate the input
@@ -110,7 +129,7 @@ exports.save_account_details = function(req, res, next) {
     console.log('error in form details')
     return res.render('account.hbs')
   }
-}
+})
 
 exports.isLoggedIn = function (req, res, next) {
   if (req.session.loggedIn === 1) {
@@ -149,7 +168,7 @@ function parse(todo) {
   return t;
 }
 
-exports.create = function (req, res, next) {
+exports.create = throttle(WRITE_LIMIT, function (req, res, next) {
   // console.log('req.body: ' + JSON.stringify(req.body));
 
   var item = req.body.content;
@@ -185,7 +204,7 @@ exports.create = function (req, res, next) {
 
     // res.redirect('/#' + todo.content.toString('base64'));
   });
-};
+});
 
 exports.destroy = function (req, res, next) {
   Todo.findById(req.params.id, function (err, todo) {
@@ -238,7 +257,7 @@ function isBlank(str) {
   return (!str || /^\s*$/.test(str));
 }
 
-exports.import = function (req, res, next) {
+exports.import = throttle(UPLOAD_LIMIT, function (req, res, next) {
   if (!req.files) {
     res.send('No files were uploaded.');
     return;
@@ -293,9 +312,9 @@ exports.import = function (req, res, next) {
   });
 
   res.redirect('/');
-};
+});
 
-exports.about_new = function (req, res, next) {
+exports.about_new = throttle(READ_LIMIT, function (req, res, next) {
   console.log(JSON.stringify(req.query));
   return res.render("about_new.dust",
     {
@@ -303,7 +322,7 @@ exports.about_new = function (req, res, next) {
       subhead: 'Vulnerabilities at their best',
       device: req.query.device
     });
-};
+});
 
 // Prototype Pollution
 
