@@ -103,8 +103,15 @@ exports.save_account_details = function(req, res, next) {
     profile.firstname = validator.rtrim(profile.firstname)
     profile.lastname = validator.rtrim(profile.lastname)
 
-    // render the view
-    return res.render('account.hbs', profile)
+    // render the view with an allow-listed model so that request data cannot
+    // supply view options such as `layout` that are resolved as file paths
+    return res.render('account.hbs', {
+      email: profile.email,
+      phone: profile.phone,
+      firstname: profile.firstname,
+      lastname: profile.lastname,
+      country: profile.country
+    })
   } else {
     // if input validation fails, we just render the view as is
     console.log('error in form details')
