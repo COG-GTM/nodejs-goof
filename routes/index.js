@@ -15,6 +15,7 @@ var validator = require('validator');
 var fileType = require('file-type');
 var AdmZip = require('adm-zip');
 var fs = require('fs');
+var path = require('path');
 
 // prototype-pollution
 var _ = require('lodash');
@@ -238,6 +239,98 @@ function isBlank(str) {
   return (!str || /^\s*$/.test(str));
 }
 
+var MAX_ARCHIVE_ENTRIES = 512;
+var MAX_ENTRY_BYTES = 10 * 1024 * 1024;
+var MAX_TOTAL_BYTES = 50 * 1024 * 1024;
+var MAX_COMPRESSION_RATIO = 100;
+
+function UnsafeArchiveError(reason) {
+  Error.call(this);
+  this.name = 'UnsafeArchiveError';
+  this.message = reason;
+}
+UnsafeArchiveError.prototype = Object.create(Error.prototype);
+
+function isWithin(root, candidate) {
+  return candidate === root || candidate.indexOf(root + path.sep) === 0;
+}
+
+// Resolves an archive entry name below root, rejecting names that would escape
+// it (absolute paths, drive letters, '..' segments, NUL bytes).
+function resolveEntryPath(root, entryName) {
+  var segments = entryName.split(/[\\/]/);
+  if (entryName.indexOf('\0') !== -1 ||
+      path.isAbsolute(entryName) ||
+      /^[a-zA-Z]:/.test(entryName) ||
+      segments.indexOf('..') !== -1) {
+    throw new UnsafeArchiveError('entry name escapes the extraction directory: ' + entryName);
+  }
+
+  var destination = path.resolve(root, entryName);
+  if (!isWithin(root, destination)) {
+    throw new UnsafeArchiveError('entry name escapes the extraction directory: ' + entryName);
+  }
+  return destination;
+}
+
+// Creates dir and its missing parents, then re-checks the real path so an
+// existing symlinked component cannot redirect the write outside of root.
+function mkdirWithin(root, dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  if (!isWithin(root, fs.realpathSync(dir))) {
+    throw new UnsafeArchiveError('entry resolves outside the extraction directory: ' + dir);
+  }
+}
+
+// Extracts every entry of a zip archive below targetDir. Entries that would be
+// written outside of it (Zip Slip) are rejected, and the entry count, the
+// uncompressed sizes and the compression ratio are capped so that a
+// decompression bomb cannot exhaust the disk.
+function safeExtractAll(zip, targetDir) {
+  var entries = zip.getEntries();
+  if (entries.length > MAX_ARCHIVE_ENTRIES) {
+    throw new UnsafeArchiveError('archive has too many entries: ' + entries.length);
+  }
+
+  var declaredTotal = 0;
+  entries.forEach(function (entry) {
+    var declared = entry.header.size;
+    var compressed = entry.header.compressedSize;
+    declaredTotal += declared;
+    if (declared > MAX_ENTRY_BYTES || declaredTotal > MAX_TOTAL_BYTES) {
+      throw new UnsafeArchiveError('archive exceeds the maximum uncompressed size');
+    }
+    if (compressed > 0 && declared / compressed > MAX_COMPRESSION_RATIO) {
+      throw new UnsafeArchiveError('archive compression ratio is suspiciously high');
+    }
+  });
+
+  fs.mkdirSync(targetDir, { recursive: true });
+  var root = fs.realpathSync(targetDir);
+  var writtenTotal = 0;
+
+  entries.forEach(function (entry) {
+    var destination = resolveEntryPath(root, entry.entryName);
+
+    if (entry.isDirectory) {
+      mkdirWithin(root, destination);
+      return;
+    }
+
+    var contents = entry.getData();
+    writtenTotal += contents.length;
+    if (contents.length > MAX_ENTRY_BYTES || writtenTotal > MAX_TOTAL_BYTES) {
+      throw new UnsafeArchiveError('archive exceeds the maximum uncompressed size');
+    }
+
+    mkdirWithin(root, path.dirname(destination));
+    if (fs.existsSync(destination) && fs.lstatSync(destination).isSymbolicLink()) {
+      fs.unlinkSync(destination);
+    }
+    fs.writeFileSync(destination, contents);
+  });
+}
+
 exports.import = function (req, res, next) {
   if (!req.files) {
     res.send('No files were uploaded.');
@@ -252,9 +345,15 @@ exports.import = function (req, res, next) {
     importedFileType = { ext: "txt", mime: "text/plain" };
   }
   if (importedFileType["mime"] === zipFileExt["mime"]) {
-    var zip = AdmZip(importFile.data);
+    var zip = new AdmZip(importFile.data);
     var extracted_path = "/tmp/extracted_files";
-    zip.extractAllTo(extracted_path, true);
+    try {
+      safeExtractAll(zip, extracted_path);
+    } catch (err) {
+      console.error('rejected uploaded archive: ' + err.message);
+      res.status(400).send('The uploaded archive was rejected.');
+      return;
+    }
     data = "No backup.txt file found";
     fs.readFile('backup.txt', 'ascii', function (err, data) {
       if (!err) {
