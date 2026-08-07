@@ -53,5 +53,8 @@
     "nodemon": "^2.0.7",
     "snyk": "^1.244.0"
   },
+  "overrides": {
+    "handlebars": "4.7.9"
+  },
   "license": "Apache-2.0"
 }
