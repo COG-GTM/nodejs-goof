@@ -64,11 +64,21 @@ function adminLoginSuccess(redirectPage, session, username, res) {
   }
 }
 
+// Accepts only internal, non protocol-relative paths such as `/admin`.
+// Anything else (absolute URLs, `//evil.com`, HTML payloads) becomes an empty string.
+function internalRedirectPath (value) {
+  if (typeof value !== 'string' || value === '/') {
+    return ''
+  }
+
+  return /^\/[^/\\]/.test(value) ? value : ''
+}
+
 exports.login = function (req, res, next) {
   return res.render('admin', {
     title: 'Admin Access',
     granted: false,
-    redirectPage: req.query.redirectPage
+    redirectPage: internalRedirectPath(req.query.redirectPage)
   });
 };
 
