@@ -20,6 +20,7 @@ var errorHandler = require('errorhandler');
 var optional = require('optional');
 var marked = require('marked');
 var fileUpload = require('express-fileupload');
+var sanitizeHtml = require('sanitize-html');
 var dust = require('dustjs-linkedin');
 var cons = require('consolidate');
 const hbs = require('hbs')
@@ -39,6 +40,10 @@ app.set('layout', 'layout');
 app.use(expressLayouts);
 app.use(logger('dev'));
 app.use(methodOverride());
+if (!process.env.SESSION_SECRET) {
+  console.warn('SESSION_SECRET is not set; using a per-process random secret. ' +
+    'Sessions will not survive a restart and will not work across replicas.');
+}
 app.use(session({
   secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
   name: 'connect.sid',
@@ -55,7 +60,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(fileUpload());
 
-app.use(routes.limiter);
+app.use(routes.globalLimiter);
 
 // Routes
 app.use(routes.current_user);
@@ -80,24 +85,26 @@ app.use('/users', routesUsers)
 // Static
 app.use(st({ path: './public', url: '/public' }));
 
-// Add the option to output (escaped!) markdown
+// Add the option to output (sanitized!) markdown
 marked.setOptions({ headerIds: false, mangle: false });
+
+// marked 4 dropped its `sanitize` option, so the rendered HTML is scrubbed instead.
+// Images are allowed back in because todo items are rendered as image markdown.
+var SANITIZE_OPTIONS = {
+  allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img']),
+  allowedAttributes: Object.assign({}, sanitizeHtml.defaults.allowedAttributes, {
+    img: ['src', 'alt', 'title']
+  }),
+  allowedSchemes: ['http', 'https', 'mailto']
+};
+
 app.locals.marked = function (input) {
-  return marked.parse(escapeHtml(String(input)));
+  return sanitizeHtml(marked.parse(String(input)), SANITIZE_OPTIONS);
 };
 
 // development only
 if (app.get('env') == 'development') {
   app.use(errorHandler());
-}
-
-function escapeHtml(str) {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 http.createServer(app).listen(app.get('port'), function () {

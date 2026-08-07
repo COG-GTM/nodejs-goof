@@ -12,14 +12,22 @@ var exec = require('child_process').exec;
 var validator = require('validator');
 var rateLimit = require('express-rate-limit');
 
-// Shared throttle, applied globally in app.js and to each expensive handler below.
+// Coarse throttle mounted app-wide in app.js.
+exports.globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 300,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false
+});
+
+// Tighter throttle for the handlers below that shell out, hit the disk or the database.
+// A separate instance (and store) from globalLimiter so a request is not counted twice.
 var limiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 100,
   standardHeaders: 'draft-7',
   legacyHeaders: false
 });
-exports.limiter = limiter;
 
 // zip-slip
 var fileType = require('file-type');
