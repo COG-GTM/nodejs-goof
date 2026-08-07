@@ -11,7 +11,7 @@ var crypto = require('crypto');
 var express = require('express');
 var http = require('http');
 var path = require('path');
-var ejsEngine = require('ejs-locals');
+var expressLayouts = require('express-ejs-layouts');
 var bodyParser = require('body-parser');
 var session = require('express-session')
 var methodOverride = require('method-override');
@@ -20,33 +20,47 @@ var errorHandler = require('errorhandler');
 var optional = require('optional');
 var marked = require('marked');
 var fileUpload = require('express-fileupload');
+var sanitizeHtml = require('sanitize-html');
 var dust = require('dustjs-linkedin');
-var dustHelpers = require('dustjs-helpers');
 var cons = require('consolidate');
 const hbs = require('hbs')
 
 var app = express();
+app.disable('x-powered-by');
 var routes = require('./routes');
 var routesUsers = require('./routes/users.js')
 
 // all environments
 app.set('port', process.env.PORT || 3001);
-app.engine('ejs', ejsEngine);
 app.engine('dust', cons.dust);
 app.engine('hbs', hbs.__express);
-cons.dust.helpers = dustHelpers;
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
+app.set('layout', 'layout');
+app.use(expressLayouts);
 app.use(logger('dev'));
 app.use(methodOverride());
+if (!process.env.SESSION_SECRET) {
+  console.warn('SESSION_SECRET is not set; using a per-process random secret. ' +
+    'Sessions will not survive a restart and will not work across replicas.');
+}
 app.use(session({
-  secret: 'keyboard cat',
+  secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
   name: 'connect.sid',
-  cookie: { path: '/' }
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production'
+  }
 }))
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(fileUpload());
+
+app.use(routes.globalLimiter);
 
 // Routes
 app.use(routes.current_user);
@@ -72,16 +86,26 @@ app.use('/users', routesUsers)
 app.use(st({ path: './public', url: '/public' }));
 
 // Add the option to output (sanitized!) markdown
-marked.setOptions({ sanitize: true });
-app.locals.marked = marked;
+marked.setOptions({ headerIds: false, mangle: false });
+
+// marked 4 dropped its `sanitize` option, so the rendered HTML is scrubbed instead.
+// Images are allowed back in because todo items are rendered as image markdown.
+var SANITIZE_OPTIONS = {
+  allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img']),
+  allowedAttributes: Object.assign({}, sanitizeHtml.defaults.allowedAttributes, {
+    img: ['src', 'alt', 'title']
+  }),
+  allowedSchemes: ['http', 'https', 'mailto']
+};
+
+app.locals.marked = function (input) {
+  return sanitizeHtml(marked.parse(String(input)), SANITIZE_OPTIONS);
+};
 
 // development only
 if (app.get('env') == 'development') {
   app.use(errorHandler());
 }
-
-var token = 'SECRET_TOKEN_f8ed84e8f41e4146403dd4a6bbcea5e418d23a9';
-console.log('token: ' + token);
 
 http.createServer(app).listen(app.get('port'), function () {
   console.log('Express server listening on port ' + app.get('port'));

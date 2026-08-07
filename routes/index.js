@@ -10,6 +10,24 @@ var readline = require('readline');
 var moment = require('moment');
 var exec = require('child_process').exec;
 var validator = require('validator');
+var rateLimit = require('express-rate-limit');
+
+// Coarse throttle mounted app-wide in app.js.
+exports.globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 300,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false
+});
+
+// Tighter throttle for the handlers below that shell out, hit the disk or the database.
+// A separate instance (and store) from globalLimiter so a request is not counted twice.
+var limiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 100,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false
+});
 
 // zip-slip
 var fileType = require('file-type');
@@ -35,12 +53,15 @@ exports.index = function (req, res, next) {
 };
 
 exports.loginHandler = function (req, res, next) {
-  if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
+  const username = String(req.body.username == null ? '' : req.body.username);
+  const password = String(req.body.password == null ? '' : req.body.password);
+
+  if (validator.isEmail(username)) {
+    User.find({ username: username, password: password }, function (err, users) {
+      if (err) return next(err);
       if (users.length > 0) {
         const redirectPage = req.body.redirectPage
         const session = req.session
-        const username = req.body.username
         return adminLoginSuccess(redirectPage, session, username, res)
       } else {
         return res.status(401).send()
@@ -57,36 +78,41 @@ function adminLoginSuccess(redirectPage, session, username, res) {
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (redirectPage) {
-      return res.redirect(redirectPage)
-  } else {
-      return res.redirect('/admin')
-  }
+  return res.redirect(resolveRedirect(redirectPage))
 }
 
-exports.login = function (req, res, next) {
+// Redirect targets are resolved against a fixed allow list so a caller-supplied
+// value can never steer the browser off-site.
+const REDIRECT_TARGETS = ['/admin', '/account_details', '/'];
+
+function resolveRedirect(target) {
+  const match = REDIRECT_TARGETS.indexOf(String(target));
+  return match === -1 ? '/admin' : REDIRECT_TARGETS[match];
+}
+
+exports.login = [limiter, function (req, res, next) {
   return res.render('admin', {
     title: 'Admin Access',
     granted: false,
     redirectPage: req.query.redirectPage
   });
-};
+}];
 
-exports.admin = function (req, res, next) {
+exports.admin = [limiter, function (req, res, next) {
   return res.render('admin', {
     title: 'Admin Access Granted',
     granted: true,
   });
-};
+}];
 
-exports.get_account_details = function(req, res, next) {
+exports.get_account_details = [limiter, function(req, res, next) {
   // @TODO need to add a database call to get the profile from the database
   // and provide it to the view to display
-  const profile = {}
+  const profile = { layout: false }
  	return res.render('account.hbs', profile)
-}
+}]
 
-exports.save_account_details = function(req, res, next) {
+exports.save_account_details = [limiter, function(req, res, next) {
   // get the profile details from the JSON
 	const profile = req.body
   // validate the input
@@ -104,13 +130,14 @@ exports.save_account_details = function(req, res, next) {
     profile.lastname = validator.rtrim(profile.lastname)
 
     // render the view
+    profile.layout = false
     return res.render('account.hbs', profile)
   } else {
     // if input validation fails, we just render the view as is
     console.log('error in form details')
-    return res.render('account.hbs')
+    return res.render('account.hbs', { layout: false })
   }
-}
+}]
 
 exports.isLoggedIn = function (req, res, next) {
   if (req.session.loggedIn === 1) {
@@ -149,7 +176,7 @@ function parse(todo) {
   return t;
 }
 
-exports.create = function (req, res, next) {
+exports.create = [limiter, function (req, res, next) {
   // console.log('req.body: ' + JSON.stringify(req.body));
 
   var item = req.body.content;
@@ -185,7 +212,7 @@ exports.create = function (req, res, next) {
 
     // res.redirect('/#' + todo.content.toString('base64'));
   });
-};
+}];
 
 exports.destroy = function (req, res, next) {
   Todo.findById(req.params.id, function (err, todo) {
@@ -238,7 +265,7 @@ function isBlank(str) {
   return (!str || /^\s*$/.test(str));
 }
 
-exports.import = function (req, res, next) {
+exports.import = [limiter, function (req, res, next) {
   if (!req.files) {
     res.send('No files were uploaded.');
     return;
@@ -293,17 +320,19 @@ exports.import = function (req, res, next) {
   });
 
   res.redirect('/');
-};
+}];
 
-exports.about_new = function (req, res, next) {
+exports.about_new = [limiter, function (req, res, next) {
   console.log(JSON.stringify(req.query));
   return res.render("about_new.dust",
     {
+      layout: false,
       title: 'Patch TODO List',
       subhead: 'Vulnerabilities at their best',
-      device: req.query.device
+      device: req.query.device,
+      fontSize: req.query.device === 'Desktop' ? 'medium' : 'x-large'
     });
-};
+}];
 
 // Prototype Pollution
 
