@@ -54,7 +54,7 @@
     "snyk": "^1.244.0"
   },
   "overrides": {
-    "form-data": "2.5.4"
+    "form-data": "2.5.5"
   },
   "license": "Apache-2.0"
 }
