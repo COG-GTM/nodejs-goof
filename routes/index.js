@@ -10,6 +10,7 @@ var readline = require('readline');
 var moment = require('moment');
 var exec = require('child_process').exec;
 var validator = require('validator');
+var crypto = require('crypto');
 
 // zip-slip
 var fileType = require('file-type');
@@ -118,6 +119,42 @@ exports.isLoggedIn = function (req, res, next) {
   } else {
     return res.redirect('/')
   }
+}
+
+// Same gate as isLoggedIn, for JSON endpoints that should not be redirected
+exports.isLoggedInApi = function (req, res, next) {
+  if (req.session.loggedIn === 1) {
+    return next()
+  } else {
+    return res.status(401).json({ ok: false, error: 'Authentication required' })
+  }
+}
+
+var SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS']
+
+exports.csrfToken = function (req, res, next) {
+  if (!req.session.csrfToken) {
+    req.session.csrfToken = crypto.randomBytes(32).toString('hex')
+  }
+  res.locals.csrfToken = req.session.csrfToken
+  next()
+}
+
+exports.verifyCsrf = function (req, res, next) {
+  if (SAFE_METHODS.indexOf(req.method) !== -1) {
+    return next()
+  }
+
+  var expected = req.session.csrfToken
+  var provided = (req.body && req.body._csrf) || req.get('x-csrf-token')
+
+  if (typeof expected === 'string' && typeof provided === 'string' &&
+    provided.length === expected.length &&
+    crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected))) {
+    return next()
+  }
+
+  return res.status(403).json({ ok: false, error: 'Invalid CSRF token' })
 }
 
 exports.logout = function (req, res, next) {

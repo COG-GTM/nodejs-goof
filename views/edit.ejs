@@ -3,6 +3,7 @@
 <h1 id="page-title"><%= title %></h1>
 <div id="list">
   <form action="/create" method="post" accept-charset="utf-8">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
     <div class="item-new">
       <input class="input" type="text" name="content" />
     </div>
@@ -17,6 +18,7 @@
 
     <% if( todo._id == current ){ %>
     <form class="update-form" action="/update/<%= todo._id %>" method="post" accept-charset="utf-8">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
       <input class="update-input" type="text" name="content" value="<%= todo.content %>" />
     </form>
     <% }else{ %>
@@ -24,9 +26,15 @@
     <% } %>
 
     <% if( todo._id == current ){ %>
-    <a class="del-btn-edit" href="/destroy/<%= todo._id %>" title="Delete this todo item">Delete</a>
+    <form class="del-form" action="/destroy/<%= todo._id %>" method="post" accept-charset="utf-8">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <button class="del-btn-edit" type="submit" title="Delete this todo item">Delete</button>
+    </form>
     <% }else{ %>
-    <a class="del-btn" href="/destroy/<%= todo._id %>" title="Delete this todo item">Delete</a>
+    <form class="del-form" action="/destroy/<%= todo._id %>" method="post" accept-charset="utf-8">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <button class="del-btn" type="submit" title="Delete this todo item">Delete</button>
+    </form>
     <% } %>
   </div>
 <% }); %>
