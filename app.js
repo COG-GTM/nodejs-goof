@@ -18,7 +18,7 @@ var methodOverride = require('method-override');
 var logger = require('morgan');
 var errorHandler = require('errorhandler');
 var optional = require('optional');
-var marked = require('marked');
+var renderMarkdown = require('./safe-markdown');
 var fileUpload = require('express-fileupload');
 var dust = require('dustjs-linkedin');
 var dustHelpers = require('dustjs-helpers');
@@ -71,9 +71,9 @@ app.use('/users', routesUsers)
 // Static
 app.use(st({ path: './public', url: '/public' }));
 
-// Add the option to output (sanitized!) markdown
-marked.setOptions({ sanitize: true });
-app.locals.marked = marked;
+// Markdown is rendered through a wrapper that escapes the source and protocol
+// checks every generated url, so the output is safe to emit unescaped
+app.locals.renderMarkdown = renderMarkdown;
 
 // development only
 if (app.get('env') == 'development') {
