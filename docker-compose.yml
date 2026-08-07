@@ -5,6 +5,10 @@ services:
     container_name: goof
     environment:
       - DOCKER=1
+      # Optional: pick the admin credentials instead of the random one-time
+      # password the app prints on first startup.
+      - ADMIN_USERNAME
+      - ADMIN_PASSWORD
     ports:
       - "3001:3001"
       - "9229:9229"
