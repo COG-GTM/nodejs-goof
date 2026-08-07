@@ -16,9 +16,6 @@ var fileType = require('file-type');
 var AdmZip = require('adm-zip');
 var fs = require('fs');
 
-// prototype-pollution
-var _ = require('lodash');
-
 exports.index = function (req, res, next) {
   Todo.
     find({}).
@@ -320,6 +317,26 @@ const users = [
 let messages = [];
 let lastId = 1;
 
+// Fields a client is allowed to set on a message.
+const MESSAGE_FIELDS = ['text', 'icon'];
+
+function pickMessageFields(input) {
+  const picked = {};
+
+  if (!input || typeof input !== 'object') {
+    return picked;
+  }
+
+  MESSAGE_FIELDS.forEach((field) => {
+    const value = input[field];
+    if (Object.prototype.hasOwnProperty.call(input, field) && typeof value === 'string') {
+      picked[field] = value;
+    }
+  });
+
+  return picked;
+}
+
 function findUser(auth) {
   return users.find((u) =>
     u.name === auth.name &&
@@ -344,7 +361,7 @@ exports.chat = {
       icon: '👋',
     };
 
-    _.merge(message, req.body.message, {
+    Object.assign(message, pickMessageFields(req.body.message), {
       id: lastId++,
       timestamp: Date.now(),
       userName: user.name,
