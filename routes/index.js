@@ -16,8 +16,6 @@ var fileType = require('file-type');
 var AdmZip = require('adm-zip');
 var fs = require('fs');
 
-// prototype-pollution
-var _ = require('lodash');
 
 exports.index = function (req, res, next) {
   Todo.
@@ -325,6 +323,28 @@ function findUser(auth) {
     u.name === auth.name &&
     u.password === auth.password);
 }
+
+// Fields a client is allowed to set on a message. Anything else, including
+// __proto__/constructor/prototype, is ignored.
+const MESSAGE_FIELDS = ['icon', 'text'];
+
+function buildMessage(input) {
+  const message = {
+    // Default message icon. Cen be overwritten by user.
+    icon: '👋',
+  };
+
+  if (input && typeof input === 'object') {
+    MESSAGE_FIELDS.forEach((field) => {
+      const value = input[field];
+      if (Object.prototype.hasOwnProperty.call(input, field) && typeof value === 'string') {
+        message[field] = value;
+      }
+    });
+  }
+
+  return message;
+}
 ///////////////////////////////////////////////////////////////////////////////
 
 exports.chat = {
@@ -339,16 +359,10 @@ exports.chat = {
       return;
     }
 
-    const message = {
-      // Default message icon. Cen be overwritten by user.
-      icon: '👋',
-    };
-
-    _.merge(message, req.body.message, {
-      id: lastId++,
-      timestamp: Date.now(),
-      userName: user.name,
-    });
+    const message = buildMessage(req.body.message);
+    message.id = lastId++;
+    message.timestamp = Date.now();
+    message.userName = user.name;
 
     messages.push(message);
     res.send({ ok: true });
@@ -356,7 +370,7 @@ exports.chat = {
   delete(req, res) {
     const user = findUser(req.body.auth || {});
 
-    if (!user || !user.canDelete) {
+    if (!user || !Object.prototype.hasOwnProperty.call(user, 'canDelete') || user.canDelete !== true) {
       res.status(403).send({ ok: false, error: 'Access denied' });
       return;
     }
