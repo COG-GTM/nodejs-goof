@@ -5,6 +5,9 @@ var typeorm = require("typeorm");
 var router = express.Router()
 module.exports = router
 
+// Role is a security-sensitive column and is never taken from user input.
+var DEFAULT_ROLE = 'user'
+
 router.get('/', async (req, res, next) => {
 
   const mongoConnection = typeorm.getConnection('mysql')
@@ -28,10 +31,18 @@ router.post('/', async (req, res, next) => {
     const mongoConnection = typeorm.getConnection('mysql')
     const repo = mongoConnection.getRepository("Users")
 
-    const user = {}
-    user.name = req.body.name
-    user.address = req.body.address
-    user.role = req.body.role
+    const name = req.body.name
+    const address = req.body.address
+
+    if (typeof name !== 'string' || typeof address !== 'string') {
+      return res.sendStatus(400)
+    }
+
+    const user = {
+      name: name,
+      address: address,
+      role: DEFAULT_ROLE
+    }
 
     const savedRecord = await repo.save(user)
     console.log("Post has been saved: ", savedRecord)
