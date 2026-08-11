@@ -295,13 +295,21 @@ exports.import = function (req, res, next) {
   res.redirect('/');
 };
 
+var ALLOWED_DEVICES = ['Desktop', 'Mobile', 'Tablet'];
+
+exports.normalizeDevice = function (value) {
+  return ALLOWED_DEVICES.indexOf(value) !== -1 ? value : 'Unknown';
+};
+
 exports.about_new = function (req, res, next) {
   console.log(JSON.stringify(req.query));
+  var device = exports.normalizeDevice(req.query.device);
   return res.render("about_new.dust",
     {
       title: 'Patch TODO List',
       subhead: 'Vulnerabilities at their best',
-      device: req.query.device
+      device: device,
+      isDesktop: device === 'Desktop'
     });
 };
 
