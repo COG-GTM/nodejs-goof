@@ -34,6 +34,11 @@ docker-compose up --build
 docker-compose down
 ```
 
+### Session configuration
+The session secret is read from the `SESSION_SECRET` env var and must be at least 32 characters.
+It is required in production; otherwise a random ephemeral secret is generated at startup (sessions do not survive a restart).
+Session cookies are `httpOnly` and `sameSite=lax`; the `secure` flag is on when `NODE_ENV=production` and can be forced with `SESSION_COOKIE_SECURE=true|false`.
+
 ### Heroku usage
 Goof requires attaching a MongoLab service to be deployed as a Heroku app. 
 That sets up the MONGOLAB_URI env var so everything after should just work. 

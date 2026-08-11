@@ -1,4 +1,39 @@
+var crypto = require('crypto');
+
 module.exports = {
+
+  session_secret : function ( env ){
+    env = env || process.env;
+    var secret = env.SESSION_SECRET;
+
+    if( typeof secret === 'string' && secret.length >= 32 ){
+      return secret;
+    }
+
+    if( typeof secret === 'string' && secret.length > 0 ){
+      throw new Error( 'SESSION_SECRET must be at least 32 characters long' );
+    }
+
+    if( env.NODE_ENV === 'production' ){
+      throw new Error( 'SESSION_SECRET must be set in production' );
+    }
+
+    console.warn( 'SESSION_SECRET is not set, generating an ephemeral session secret' );
+    return crypto.randomBytes( 32 ).toString( 'hex' );
+  },
+
+  session_cookie : function ( env ){
+    env = env || process.env;
+
+    return {
+      path     : '/',
+      httpOnly : true,
+      sameSite : 'lax',
+      secure   : env.SESSION_COOKIE_SECURE
+        ? env.SESSION_COOKIE_SECURE !== 'false'
+        : env.NODE_ENV === 'production'
+    };
+  },
 
   ran_no : function ( min, max ){
     return Math.floor( Math.random() * ( max - min + 1 )) + min;
