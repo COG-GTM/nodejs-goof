@@ -8,7 +8,7 @@ var ms = require('ms');
 var streamBuffers = require('stream-buffers');
 var readline = require('readline');
 var moment = require('moment');
-var exec = require('child_process').exec;
+var execFile = require('child_process').execFile;
 var validator = require('validator');
 
 // zip-slip
@@ -149,21 +149,35 @@ function parse(todo) {
   return t;
 }
 
+function isInspectableImageUrl(url) {
+  if (typeof url !== 'string' || url.length > 2048) return false;
+  // Conservative character allowlist: no whitespace and no shell metacharacters.
+  if (!/^[A-Za-z0-9._~:/?#@%+=-]+$/.test(url)) return false;
+  return validator.isURL(url, {
+    protocols: ['http', 'https'],
+    require_protocol: true,
+    require_valid_protocol: true,
+  });
+}
+
 exports.create = function (req, res, next) {
   // console.log('req.body: ' + JSON.stringify(req.body));
 
   var item = req.body.content;
-  var imgRegex = /\!\[alt text\]\((http.*)\s\".*/;
+  var imgRegex = /\!\[alt text\]\(([^)\s]+)\s\".*/;
   if (typeof (item) == 'string' && item.match(imgRegex)) {
     var url = item.match(imgRegex)[1];
     console.log('found img: ' + url);
 
-    exec('identify ' + url, function (err, stdout, stderr) {
-      console.log(err);
-      if (err !== null) {
-        console.log('Error (' + err + '):' + stderr);
-      }
-    });
+    if (isInspectableImageUrl(url)) {
+      execFile('identify', [url], function (err, stdout, stderr) {
+        if (err !== null) {
+          console.log('Error (' + err + '):' + stderr);
+        }
+      });
+    } else {
+      console.log('skipping identify for untrusted url');
+    }
 
   } else {
     item = parse(item);
