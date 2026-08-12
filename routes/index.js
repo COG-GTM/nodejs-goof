@@ -32,6 +32,8 @@ exports.index = function (req, res, next) {
     });
 };
 
+var EMAIL_RE = /^[a-zA-Z0-9._%+-]{1,64}@[a-zA-Z0-9.-]{1,255}\.[a-zA-Z]{2,24}$/;
+
 exports.loginHandler = function (req, res, next) {
   var username = req.body.username;
   var password = req.body.password;
@@ -40,15 +42,20 @@ exports.loginHandler = function (req, res, next) {
     return res.status(401).send()
   }
 
-  if (validator.isEmail(username)) {
-    // $eq forces the value to be treated as a literal, never as a query operator
-    User.find({ username: { $eq: String(username) } }, function (err, users) {
+  var usernameMatch = EMAIL_RE.exec(username);
+
+  if (usernameMatch && validator.isEmail(usernameMatch[0])) {
+    // Query only on the allowlisted characters matched above, wrapped in $eq so
+    // the value can never be interpreted as a query operator.
+    var safeUsername = usernameMatch[0];
+
+    User.find({ username: { $eq: safeUsername } }, function (err, users) {
       if (err) return next(err);
 
       if (users.some((u) => constantTimeEquals(u.password, password))) {
         const redirectPage = req.body.redirectPage
         const session = req.session
-        return adminLoginSuccess(redirectPage, session, username, res)
+        return adminLoginSuccess(redirectPage, session, safeUsername, res)
       } else {
         return res.status(401).send()
       }
