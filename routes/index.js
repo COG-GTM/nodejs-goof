@@ -16,9 +16,6 @@ var fileType = require('file-type');
 var AdmZip = require('adm-zip');
 var fs = require('fs');
 
-// prototype-pollution
-var _ = require('lodash');
-
 exports.index = function (req, res, next) {
   Todo.
     find({}).
@@ -311,16 +308,21 @@ exports.about_new = function (req, res, next) {
 // In order of simplicity we are not using any database. But you can write the
 // same logic using MongoDB.
 const users = [
-  // You know password for the user.
-  { name: 'user', password: 'pwd' },
-  // You don't know password for the admin.
-  { name: 'admin', password: Math.random().toString(32), canDelete: true },
+  { name: 'user', password: process.env.CHAT_USER_PASSWORD || Math.random().toString(32) },
+  { name: 'admin', password: process.env.CHAT_ADMIN_PASSWORD || Math.random().toString(32), canDelete: true },
 ];
 
 let messages = [];
 let lastId = 1;
 
+// Only these message fields may be supplied by a client.
+const ALLOWED_MESSAGE_FIELDS = ['icon', 'text'];
+
 function findUser(auth) {
+  if (typeof auth.name !== 'string' || typeof auth.password !== 'string') {
+    return undefined;
+  }
+
   return users.find((u) =>
     u.name === auth.name &&
     u.password === auth.password);
@@ -340,15 +342,22 @@ exports.chat = {
     }
 
     const message = {
-      // Default message icon. Cen be overwritten by user.
+      // Default message icon. Can be overwritten by user.
       icon: '👋',
     };
 
-    _.merge(message, req.body.message, {
-      id: lastId++,
-      timestamp: Date.now(),
-      userName: user.name,
-    });
+    const input = req.body.message;
+    if (input && typeof input === 'object') {
+      ALLOWED_MESSAGE_FIELDS.forEach((field) => {
+        if (Object.prototype.hasOwnProperty.call(input, field)) {
+          message[field] = String(input[field]);
+        }
+      });
+    }
+
+    message.id = lastId++;
+    message.timestamp = Date.now();
+    message.userName = user.name;
 
     messages.push(message);
     res.send({ ok: true });
