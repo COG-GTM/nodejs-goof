@@ -254,7 +254,7 @@ exports.import = function (req, res, next) {
   if (importedFileType["mime"] === zipFileExt["mime"]) {
     var zip = AdmZip(importFile.data);
     var extracted_path = "/tmp/extracted_files";
-    zip.extractAllTo(extracted_path, true);
+    utils.safe_extract_zip(zip, extracted_path);
     data = "No backup.txt file found";
     fs.readFile('backup.txt', 'ascii', function (err, data) {
       if (!err) {
