@@ -10,6 +10,7 @@ var readline = require('readline');
 var moment = require('moment');
 var execFile = require('child_process').execFile;
 var validator = require('validator');
+var crypto = require('crypto');
 
 // zip-slip
 var fileType = require('file-type');
@@ -40,11 +41,11 @@ exports.loginHandler = function (req, res, next) {
   }
 
   if (validator.isEmail(username)) {
-    // $eq forces the values to be treated as literals, never as query operators
-    User.find({ username: { $eq: String(username) }, password: { $eq: String(password) } }, function (err, users) {
+    // $eq forces the value to be treated as a literal, never as a query operator
+    User.find({ username: { $eq: String(username) } }, function (err, users) {
       if (err) return next(err);
 
-      if (users.length > 0) {
+      if (users.some((u) => constantTimeEquals(u.password, password))) {
         const redirectPage = req.body.redirectPage
         const session = req.session
         return adminLoginSuccess(redirectPage, session, username, res)
@@ -56,6 +57,12 @@ exports.loginHandler = function (req, res, next) {
     return res.status(401).send()
   }
 };
+
+function constantTimeEquals(expected, actual) {
+  var a = Buffer.from(String(expected));
+  var b = Buffer.from(String(actual));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 
 function adminLoginSuccess(redirectPage, session, username, res) {
   session.loggedIn = 1
