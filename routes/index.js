@@ -40,7 +40,8 @@ exports.loginHandler = function (req, res, next) {
   }
 
   if (validator.isEmail(username)) {
-    User.find({ username: username, password: password }, function (err, users) {
+    // $eq forces the values to be treated as literals, never as query operators
+    User.find({ username: { $eq: String(username) }, password: { $eq: String(password) } }, function (err, users) {
       if (err) return next(err);
 
       if (users.length > 0) {
