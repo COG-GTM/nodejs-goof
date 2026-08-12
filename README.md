@@ -135,16 +135,16 @@ That object structure is passed as-is to the `password` property and has a speci
 The `/admin` view introduces a `redirectPage` query path, as follows in the admin view:
 
 ```
-<input type="hidden" name="redirectPage" value="<%- redirectPage %>" />
+<input type="hidden" name="redirectPage" value="<%= redirectPage %>" />
 ```
 
-One fault here is that the `redirectPage` is rendered as raw HTML and not properly escaped, because it uses `<%- >` instead of `<%= >`. That itself, introduces a Cross-site Scripting (XSS) vulnerability via:
-
-```
-http://localhost:3001/login?redirectPage="><script>alert(1)</script>
-```
-
-To exploit the open redirect, simply provide a URL such as `redirectPage=https://google.com` which exploits the fact that the code doesn't enforce local URLs in `index.js:72`.
+This used to be rendered as raw HTML with `<%- >`, which made
+`http://localhost:3001/login?redirectPage="><script>alert(1)</script>` a reflected
+Cross-site Scripting vector. It is now escaped with `<%= >`, and `redirectPage` is
+passed through `utils.safe_redirect_path()` — an allow-list that only accepts
+same-site relative paths — both when rendering the view and before redirecting after
+login, so absolute URLs such as `redirectPage=https://google.com`, protocol-relative
+URLs and `javascript:` URIs are dropped and the user lands on `/admin`.
 
 #### Hardcoded values - session information
 
