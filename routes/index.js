@@ -8,7 +8,7 @@ var ms = require('ms');
 var streamBuffers = require('stream-buffers');
 var readline = require('readline');
 var moment = require('moment');
-var exec = require('child_process').exec;
+var execFile = require('child_process').execFile;
 var validator = require('validator');
 
 // zip-slip
@@ -32,12 +32,20 @@ exports.index = function (req, res, next) {
 };
 
 exports.loginHandler = function (req, res, next) {
-  if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
+  var username = req.body.username;
+  var password = req.body.password;
+
+  if (typeof username !== 'string' || typeof password !== 'string') {
+    return res.status(401).send()
+  }
+
+  if (validator.isEmail(username)) {
+    User.find({ username: username, password: password }, function (err, users) {
+      if (err) return next(err);
+
       if (users.length > 0) {
         const redirectPage = req.body.redirectPage
         const session = req.session
-        const username = req.body.username
         return adminLoginSuccess(redirectPage, session, username, res)
       } else {
         return res.status(401).send()
@@ -155,8 +163,7 @@ exports.create = function (req, res, next) {
     var url = item.match(imgRegex)[1];
     console.log('found img: ' + url);
 
-    exec('identify ' + url, function (err, stdout, stderr) {
-      console.log(err);
+    execFile('identify', [url], function (err, stdout, stderr) {
       if (err !== null) {
         console.log('Error (' + err + '):' + stderr);
       }
@@ -293,12 +300,14 @@ exports.import = function (req, res, next) {
 };
 
 exports.about_new = function (req, res, next) {
-  console.log(JSON.stringify(req.query));
+  var device = typeof req.query.device === 'string' ? req.query.device : '';
+
   return res.render("about_new.dust",
     {
       title: 'Patch TODO List',
       subhead: 'Vulnerabilities at their best',
-      device: req.query.device
+      device: device,
+      isDesktop: device === 'Desktop'
     });
 };
 
