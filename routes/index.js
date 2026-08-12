@@ -8,16 +8,14 @@ var ms = require('ms');
 var streamBuffers = require('stream-buffers');
 var readline = require('readline');
 var moment = require('moment');
-var exec = require('child_process').exec;
+var execFile = require('child_process').execFile;
 var validator = require('validator');
+var crypto = require('crypto');
 
 // zip-slip
 var fileType = require('file-type');
 var AdmZip = require('adm-zip');
 var fs = require('fs');
-
-// prototype-pollution
-var _ = require('lodash');
 
 exports.index = function (req, res, next) {
   Todo.
@@ -34,14 +32,30 @@ exports.index = function (req, res, next) {
     });
 };
 
+var EMAIL_RE = /^[a-zA-Z0-9._%+-]{1,64}@[a-zA-Z0-9.-]{1,255}\.[a-zA-Z]{2,24}$/;
+
 exports.loginHandler = function (req, res, next) {
-  if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
-      if (users.length > 0) {
+  var username = req.body.username;
+  var password = req.body.password;
+
+  if (typeof username !== 'string' || typeof password !== 'string') {
+    return res.status(401).send()
+  }
+
+  var usernameMatch = EMAIL_RE.exec(username);
+
+  if (usernameMatch && validator.isEmail(usernameMatch[0])) {
+    // Query only on the allowlisted characters matched above, wrapped in $eq so
+    // the value can never be interpreted as a query operator.
+    var safeUsername = usernameMatch[0];
+
+    User.find({ username: { $eq: safeUsername } }, function (err, users) {
+      if (err) return next(err);
+
+      if (users.some((u) => constantTimeEquals(u.password, password))) {
         const redirectPage = req.body.redirectPage
         const session = req.session
-        const username = req.body.username
-        return adminLoginSuccess(redirectPage, session, username, res)
+        return adminLoginSuccess(redirectPage, session, safeUsername, res)
       } else {
         return res.status(401).send()
       }
@@ -50,6 +64,12 @@ exports.loginHandler = function (req, res, next) {
     return res.status(401).send()
   }
 };
+
+function constantTimeEquals(expected, actual) {
+  var a = Buffer.from(String(expected));
+  var b = Buffer.from(String(actual));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 
 function adminLoginSuccess(redirectPage, session, username, res) {
   session.loggedIn = 1
@@ -158,8 +178,7 @@ exports.create = function (req, res, next) {
     var url = item.match(imgRegex)[1];
     console.log('found img: ' + url);
 
-    exec('identify ' + url, function (err, stdout, stderr) {
-      console.log(err);
+    execFile('identify', [url], function (err, stdout, stderr) {
       if (err !== null) {
         console.log('Error (' + err + '):' + stderr);
       }
@@ -296,12 +315,14 @@ exports.import = function (req, res, next) {
 };
 
 exports.about_new = function (req, res, next) {
-  console.log(JSON.stringify(req.query));
+  var device = typeof req.query.device === 'string' ? req.query.device : '';
+
   return res.render("about_new.dust",
     {
       title: 'Patch TODO List',
       subhead: 'Vulnerabilities at their best',
-      device: req.query.device
+      device: device,
+      isDesktop: device === 'Desktop'
     });
 };
 
@@ -311,16 +332,21 @@ exports.about_new = function (req, res, next) {
 // In order of simplicity we are not using any database. But you can write the
 // same logic using MongoDB.
 const users = [
-  // You know password for the user.
-  { name: 'user', password: 'pwd' },
-  // You don't know password for the admin.
-  { name: 'admin', password: Math.random().toString(32), canDelete: true },
+  { name: 'user', password: process.env.CHAT_USER_PASSWORD || Math.random().toString(32) },
+  { name: 'admin', password: process.env.CHAT_ADMIN_PASSWORD || Math.random().toString(32), canDelete: true },
 ];
 
 let messages = [];
 let lastId = 1;
 
+// Only these message fields may be supplied by a client.
+const ALLOWED_MESSAGE_FIELDS = ['icon', 'text'];
+
 function findUser(auth) {
+  if (typeof auth.name !== 'string' || typeof auth.password !== 'string') {
+    return undefined;
+  }
+
   return users.find((u) =>
     u.name === auth.name &&
     u.password === auth.password);
@@ -340,15 +366,22 @@ exports.chat = {
     }
 
     const message = {
-      // Default message icon. Cen be overwritten by user.
+      // Default message icon. Can be overwritten by user.
       icon: '👋',
     };
 
-    _.merge(message, req.body.message, {
-      id: lastId++,
-      timestamp: Date.now(),
-      userName: user.name,
-    });
+    const input = req.body.message;
+    if (input && typeof input === 'object') {
+      ALLOWED_MESSAGE_FIELDS.forEach((field) => {
+        if (Object.prototype.hasOwnProperty.call(input, field)) {
+          message[field] = String(input[field]);
+        }
+      });
+    }
+
+    message.id = lastId++;
+    message.timestamp = Date.now();
+    message.userName = user.name;
 
     messages.push(message);
     res.send({ ok: true });
