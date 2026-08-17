@@ -49,7 +49,7 @@
     "validator": "^13.5.2"
   },
   "overrides": {
-    "form-data": "2.5.4"
+    "form-data": "2.5.5"
   },
   "devDependencies": {
     "browserify": "^13.1.1",
