@@ -40,7 +40,7 @@ exports.loginHandler = function (req, res, next) {
   }
 
   if (validator.isEmail(req.body.username)) {
-    var safeUsername = validator.trim(req.body.username);
+    var safeUsername = validator.escape(validator.trim(req.body.username));
     var submittedPassword = String(req.body.password);
 
     User.find({ username: { $eq: safeUsername } }, function (err, users) {
