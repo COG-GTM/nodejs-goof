@@ -24,6 +24,7 @@ var dust = require('dustjs-linkedin');
 var dustHelpers = require('dustjs-helpers');
 var cons = require('consolidate');
 const hbs = require('hbs')
+var utils = require('./utils');
 
 var app = express();
 var routes = require('./routes');
@@ -40,9 +41,9 @@ app.set('view engine', 'ejs');
 app.use(logger('dev'));
 app.use(methodOverride());
 app.use(session({
-  secret: 'keyboard cat',
+  secret: utils.session_secret(),
   name: 'connect.sid',
-  cookie: { path: '/' }
+  cookie: utils.session_cookie()
 }))
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -79,9 +80,6 @@ app.locals.marked = marked;
 if (app.get('env') == 'development') {
   app.use(errorHandler());
 }
-
-var token = 'SECRET_TOKEN_f8ed84e8f41e4146403dd4a6bbcea5e418d23a9';
-console.log('token: ' + token);
 
 http.createServer(app).listen(app.get('port'), function () {
   console.log('Express server listening on port ' + app.get('port'));
