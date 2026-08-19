@@ -16,8 +16,6 @@ var fileType = require('file-type');
 var AdmZip = require('adm-zip');
 var fs = require('fs');
 
-// prototype-pollution
-var _ = require('lodash');
 
 exports.index = function (req, res, next) {
   Todo.
@@ -321,9 +319,33 @@ let messages = [];
 let lastId = 1;
 
 function findUser(auth) {
+  if (typeof auth.name !== 'string' || typeof auth.password !== 'string') {
+    return undefined;
+  }
+
   return users.find((u) =>
     u.name === auth.name &&
     u.password === auth.password);
+}
+
+// Only these message fields may be supplied by the client, and only as strings.
+const MESSAGE_FIELDS = ['text', 'icon'];
+
+function pickMessageFields(input) {
+  const picked = {};
+
+  if (input === null || typeof input !== 'object') {
+    return picked;
+  }
+
+  MESSAGE_FIELDS.forEach((field) => {
+    if (Object.prototype.hasOwnProperty.call(input, field) &&
+      typeof input[field] === 'string') {
+      picked[field] = input[field];
+    }
+  });
+
+  return picked;
 }
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -339,16 +361,17 @@ exports.chat = {
       return;
     }
 
-    const message = {
-      // Default message icon. Cen be overwritten by user.
-      icon: '👋',
-    };
-
-    _.merge(message, req.body.message, {
-      id: lastId++,
-      timestamp: Date.now(),
-      userName: user.name,
-    });
+    const message = Object.assign(
+      {
+        // Default message icon. Cen be overwritten by user.
+        icon: '👋',
+      },
+      pickMessageFields(req.body.message),
+      {
+        id: lastId++,
+        timestamp: Date.now(),
+        userName: user.name,
+      });
 
     messages.push(message);
     res.send({ ok: true });
@@ -356,7 +379,8 @@ exports.chat = {
   delete(req, res) {
     const user = findUser(req.body.auth || {});
 
-    if (!user || !user.canDelete) {
+    if (!user || !Object.prototype.hasOwnProperty.call(user, 'canDelete') ||
+      user.canDelete !== true) {
       res.status(403).send({ ok: false, error: 'Access denied' });
       return;
     }
