@@ -40,7 +40,16 @@ exports.loginHandler = function (req, res, next) {
   }
 
   if (validator.isEmail(req.body.username)) {
-    User.find({ username: { $eq: req.body.username }, password: { $eq: req.body.password } }, function (err, users) {
+    var safeUsername = validator.trim(req.body.username);
+    var submittedPassword = String(req.body.password);
+
+    User.find({ username: { $eq: safeUsername } }, function (err, users) {
+      if (err) return next(err);
+
+      users = users.filter(function (user) {
+        return user.password === submittedPassword;
+      });
+
       if (users.length > 0) {
         const redirectPage = req.body.redirectPage
         const session = req.session
