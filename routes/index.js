@@ -51,13 +51,21 @@ exports.loginHandler = function (req, res, next) {
   }
 };
 
+// Only same-origin, relative paths are acceptable redirect targets.
+// Rejects absolute URLs, protocol-relative URLs (//host) and backslash variants.
+function isSafeRedirectPath(redirectPage) {
+  return typeof redirectPage === 'string' &&
+    /^\/[^/\\]/.test(redirectPage) &&
+    !redirectPage.includes('\\')
+}
+
 function adminLoginSuccess(redirectPage, session, username, res) {
   session.loggedIn = 1
 
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (redirectPage) {
+  if (isSafeRedirectPath(redirectPage)) {
       return res.redirect(redirectPage)
   } else {
       return res.redirect('/admin')
