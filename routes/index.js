@@ -15,6 +15,7 @@ var validator = require('validator');
 var fileType = require('file-type');
 var AdmZip = require('adm-zip');
 var fs = require('fs');
+var path = require('path');
 
 // prototype-pollution
 var _ = require('lodash');
@@ -238,6 +239,41 @@ function isBlank(str) {
   return (!str || /^\s*$/.test(str));
 }
 
+// Extracts a zip archive while rejecting entries that would escape targetPath
+// (Zip Slip). Entry names are resolved against the target and any entry landing
+// outside of it, as well as absolute names, are skipped.
+function safeExtractAllTo(zip, targetPath) {
+  var target = path.resolve(targetPath);
+  fs.mkdirSync(target, { recursive: true });
+
+  zip.getEntries().forEach(function (entry) {
+    var entryName = entry.entryName;
+    if (typeof entryName !== 'string' || entryName.length === 0) {
+      return;
+    }
+
+    var normalized = entryName.replace(/\\/g, '/');
+    if (path.isAbsolute(normalized) || /^[a-zA-Z]:[\\/]/.test(normalized)) {
+      console.log('skipping unsafe zip entry ' + entryName);
+      return;
+    }
+
+    var destination = path.resolve(target, normalized);
+    if (destination !== target && !destination.startsWith(target + path.sep)) {
+      console.log('skipping unsafe zip entry ' + entryName);
+      return;
+    }
+
+    if (entry.isDirectory) {
+      fs.mkdirSync(destination, { recursive: true });
+      return;
+    }
+
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.writeFileSync(destination, entry.getData());
+  });
+}
+
 exports.import = function (req, res, next) {
   if (!req.files) {
     res.send('No files were uploaded.');
@@ -254,7 +290,7 @@ exports.import = function (req, res, next) {
   if (importedFileType["mime"] === zipFileExt["mime"]) {
     var zip = AdmZip(importFile.data);
     var extracted_path = "/tmp/extracted_files";
-    zip.extractAllTo(extracted_path, true);
+    safeExtractAllTo(zip, extracted_path);
     data = "No backup.txt file found";
     fs.readFile('backup.txt', 'ascii', function (err, data) {
       if (!err) {
