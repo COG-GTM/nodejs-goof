@@ -9,6 +9,7 @@ var streamBuffers = require('stream-buffers');
 var readline = require('readline');
 var moment = require('moment');
 var exec = require('child_process').exec;
+var execFile = require('child_process').execFile;
 var validator = require('validator');
 
 // zip-slip
@@ -149,6 +150,21 @@ function parse(todo) {
   return t;
 }
 
+function isSafeImageUrl(url) {
+  if (typeof url !== 'string' || /[\s\r\n]/.test(url)) {
+    return false;
+  }
+
+  var parsed;
+  try {
+    parsed = new URL(url);
+  } catch (e) {
+    return false;
+  }
+
+  return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+}
+
 exports.create = function (req, res, next) {
   // console.log('req.body: ' + JSON.stringify(req.body));
 
@@ -158,12 +174,15 @@ exports.create = function (req, res, next) {
     var url = item.match(imgRegex)[1];
     console.log('found img: ' + url);
 
-    exec('identify ' + url, function (err, stdout, stderr) {
-      console.log(err);
-      if (err !== null) {
-        console.log('Error (' + err + '):' + stderr);
-      }
-    });
+    if (isSafeImageUrl(url)) {
+      execFile('identify', [url], function (err, stdout, stderr) {
+        if (err !== null) {
+          console.log('Error (' + err + '):' + stderr);
+        }
+      });
+    } else {
+      console.log('skipping identify for unsupported url');
+    }
 
   } else {
     item = parse(item);
