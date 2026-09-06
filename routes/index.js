@@ -51,13 +51,17 @@ exports.loginHandler = function (req, res, next) {
   }
 };
 
+function isSafeRedirectPath(target) {
+  return typeof target === 'string' && /^\/(?![\/\\])[^\\\r\n]*$/.test(target)
+}
+
 function adminLoginSuccess(redirectPage, session, username, res) {
   session.loggedIn = 1
 
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (redirectPage) {
+  if (isSafeRedirectPath(redirectPage)) {
       return res.redirect(redirectPage)
   } else {
       return res.redirect('/admin')
