@@ -55,6 +55,6 @@
   },
   "license": "Apache-2.0",
   "overrides": {
-    "form-data": "2.5.4"
+    "form-data": "2.5.5"
   }
 }
