@@ -8,7 +8,7 @@ var ms = require('ms');
 var streamBuffers = require('stream-buffers');
 var readline = require('readline');
 var moment = require('moment');
-var exec = require('child_process').exec;
+var execFile = require('child_process').execFile;
 var validator = require('validator');
 
 // zip-slip
@@ -16,39 +16,36 @@ var fileType = require('file-type');
 var AdmZip = require('adm-zip');
 var fs = require('fs');
 
-// prototype-pollution
-var _ = require('lodash');
 
 exports.index = function (req, res, next) {
   Todo.
     find({}).
     sort('-updated_at').
-    exec(function (err, todos) {
-      if (err) return next(err);
-
+    exec().
+    then(function (todos) {
       res.render('index', {
         title: 'Patch TODO List',
         subhead: 'Vulnerabilities at their best',
         todos: todos,
       });
-    });
+    }, next);
 };
 
 exports.loginHandler = function (req, res, next) {
-  if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
-      if (users.length > 0) {
-        const redirectPage = req.body.redirectPage
-        const session = req.session
-        const username = req.body.username
-        return adminLoginSuccess(redirectPage, session, username, res)
-      } else {
-        return res.status(401).send()
-      }
-    });
-  } else {
+  const username = req.body.username
+  const password = req.body.password
+  if (typeof username !== 'string' || typeof password !== 'string' || !validator.isEmail(username)) {
     return res.status(401).send()
   }
+  User.find({ username: { $eq: username }, password: { $eq: password } }).exec().then(function (users) {
+    if (users.length > 0) {
+      const redirectPage = req.body.redirectPage
+      const session = req.session
+      return adminLoginSuccess(redirectPage, session, username, res)
+    } else {
+      return res.status(401).send()
+    }
+  }, next);
 };
 
 function adminLoginSuccess(redirectPage, session, username, res) {
@@ -153,17 +150,21 @@ exports.create = function (req, res, next) {
   // console.log('req.body: ' + JSON.stringify(req.body));
 
   var item = req.body.content;
-  var imgRegex = /\!\[alt text\]\((http.*)\s\".*/;
-  if (typeof (item) == 'string' && item.match(imgRegex)) {
+  if (typeof item !== 'string') {
+    return res.status(400).send('content must be a string');
+  }
+  var imgRegex = /\!\[alt text\]\((http\S*)\s\".*/;
+  if (item.match(imgRegex)) {
     var url = item.match(imgRegex)[1];
     console.log('found img: ' + url);
 
-    exec('identify ' + url, function (err, stdout, stderr) {
-      console.log(err);
-      if (err !== null) {
-        console.log('Error (' + err + '):' + stderr);
-      }
-    });
+    if (validator.isURL(url, { protocols: ['http', 'https'], require_protocol: true })) {
+      execFile('identify', [url], function (err, stdout, stderr) {
+        if (err !== null) {
+          console.log('Error (' + err + '):' + stderr);
+        }
+      });
+    }
 
   } else {
     item = parse(item);
@@ -172,9 +173,7 @@ exports.create = function (req, res, next) {
   new Todo({
     content: item,
     updated_at: Date.now(),
-  }).save(function (err, todo, count) {
-    if (err) return next(err);
-
+  }).save().then(function (todo) {
     /*
     res.setHeader('Data', todo.content.toString('base64'));
     res.redirect('/');
@@ -184,48 +183,38 @@ exports.create = function (req, res, next) {
     res.status(302).send(todo.content.toString('base64'));
 
     // res.redirect('/#' + todo.content.toString('base64'));
-  });
+  }, next);
 };
 
 exports.destroy = function (req, res, next) {
-  Todo.findById(req.params.id, function (err, todo) {
-
-    try {
-      todo.remove(function (err, todo) {
-        if (err) return next(err);
-        res.redirect('/');
-      });
-    } catch (e) {
-    }
-  });
+  Todo.findByIdAndDelete(req.params.id).exec().then(function () {
+    res.redirect('/');
+  }, next);
 };
 
 exports.edit = function (req, res, next) {
   Todo.
     find({}).
     sort('-updated_at').
-    exec(function (err, todos) {
-      if (err) return next(err);
-
+    exec().
+    then(function (todos) {
       res.render('edit', {
         title: 'TODO',
         todos: todos,
         current: req.params.id
       });
-    });
+    }, next);
 };
 
 exports.update = function (req, res, next) {
-  Todo.findById(req.params.id, function (err, todo) {
-
+  Todo.findById(req.params.id).exec().then(function (todo) {
+    if (!todo) return res.redirect('/');
     todo.content = req.body.content;
     todo.updated_at = Date.now();
-    todo.save(function (err, todo, count) {
-      if (err) return next(err);
-
+    return todo.save().then(function () {
       res.redirect('/');
     });
-  });
+  }).catch(next);
 };
 
 // ** express turns the cookie key to lowercase **
@@ -285,9 +274,10 @@ exports.import = function (req, res, next) {
       new Todo({
         content: item,
         updated_at: Date.now(),
-      }).save(function (err, todo, count) {
-        if (err) return next(err);
+      }).save().then(function (todo) {
         console.log('added ' + todo);
+      }, function (err) {
+        console.error(err);
       });
     }
   });
@@ -296,12 +286,13 @@ exports.import = function (req, res, next) {
 };
 
 exports.about_new = function (req, res, next) {
-  console.log(JSON.stringify(req.query));
+  const device = typeof req.query.device === 'string' ? req.query.device : '';
   return res.render("about_new.dust",
     {
       title: 'Patch TODO List',
       subhead: 'Vulnerabilities at their best',
-      device: req.query.device
+      device: device,
+      isDesktop: device === 'Desktop'
     });
 };
 
@@ -325,6 +316,28 @@ function findUser(auth) {
     u.name === auth.name &&
     u.password === auth.password);
 }
+
+function canDelete(user) {
+  return Object.prototype.hasOwnProperty.call(user, 'canDelete') && user.canDelete === true;
+}
+
+const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+// Copies only own, string-valued fields from an untrusted message body.
+function sanitizeMessage(input) {
+  const out = {};
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    return out;
+  }
+  for (const key of Object.keys(input)) {
+    if (FORBIDDEN_KEYS.has(key)) continue;
+    const value = input[key];
+    if (typeof value === 'string') {
+      out[key] = value;
+    }
+  }
+  return out;
+}
 ///////////////////////////////////////////////////////////////////////////////
 
 exports.chat = {
@@ -339,16 +352,18 @@ exports.chat = {
       return;
     }
 
-    const message = {
-      // Default message icon. Cen be overwritten by user.
-      icon: '👋',
-    };
-
-    _.merge(message, req.body.message, {
-      id: lastId++,
-      timestamp: Date.now(),
-      userName: user.name,
-    });
+    const message = Object.assign(
+      {
+        // Default message icon. Can be overwritten by user.
+        icon: '👋',
+      },
+      sanitizeMessage(req.body.message),
+      {
+        id: lastId++,
+        timestamp: Date.now(),
+        userName: user.name,
+      }
+    );
 
     messages.push(message);
     res.send({ ok: true });
@@ -356,7 +371,7 @@ exports.chat = {
   delete(req, res) {
     const user = findUser(req.body.auth || {});
 
-    if (!user || !user.canDelete) {
+    if (!user || !canDelete(user)) {
       res.status(403).send({ ok: false, error: 'Access denied' });
       return;
     }
