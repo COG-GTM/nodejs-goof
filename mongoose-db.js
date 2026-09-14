@@ -42,17 +42,17 @@ if (mongoCFUri) {
 
 console.log("Using Mongo URI " + mongoUri);
 
-mongoose.connect(mongoUri);
+mongoose.connect(mongoUri).catch(function (err) {
+  console.error('failed connecting to MongoDB', err);
+});
 
 User = mongoose.model('User');
-User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
+User.find({ username: 'admin@snyk.io' }).exec().then(function (users) {
   console.log(users);
   if (users.length === 0) {
     console.log('no admin');
-    new User({ username: 'admin@snyk.io', password: 'SuperSecretPassword' }).save(function (err, user, count) {
-      if (err) {
-        console.log('error saving admin user');
-      }
-    });
+    return new User({ username: 'admin@snyk.io', password: 'SuperSecretPassword' }).save();
   }
+}).catch(function (err) {
+  console.log('error saving admin user', err);
 });
