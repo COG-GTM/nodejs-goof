@@ -46,11 +46,11 @@ exports.index = function (req, res, next) {
 };
 
 exports.loginHandler = function (req, res, next) {
-  var username = req.body.username;
-  var password = req.body.password;
-  if (typeof username !== 'string' || typeof password !== 'string') {
+  if (typeof req.body.username !== 'string' || typeof req.body.password !== 'string') {
     return res.status(401).send();
   }
+  var username = String(req.body.username);
+  var password = String(req.body.password);
   if (validator.isEmail(username)) {
     User.find({ username: username, password: password }, function (err, users) {
       if (users.length > 0) {
@@ -72,18 +72,18 @@ function adminLoginSuccess(redirectPage, session, username, res) {
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (isSafeRedirect(redirectPage)) {
-      return res.redirect(redirectPage)
-  } else {
-      return res.redirect('/admin')
-  }
+  return res.redirect(safeRedirectTarget(redirectPage))
 }
 
-function isSafeRedirect(target) {
-  return typeof target === 'string' &&
-    target.startsWith('/') &&
-    !target.startsWith('//') &&
-    !target.startsWith('/\\');
+var ALLOWED_REDIRECTS = ['/admin', '/account_details', '/', '/about_new', '/chat'];
+
+function safeRedirectTarget(target) {
+  for (var i = 0; i < ALLOWED_REDIRECTS.length; i++) {
+    if (target === ALLOWED_REDIRECTS[i]) {
+      return ALLOWED_REDIRECTS[i];
+    }
+  }
+  return '/admin';
 }
 
 exports.login = withLimit(function (req, res, next) {
