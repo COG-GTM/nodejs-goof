@@ -28,6 +28,17 @@ You can also run the MongoDB server individually via Docker, such as:
 docker run --rm -p 27017:27017 mongo:3
 ```
 
+## Configuration
+
+Secrets are read from environment variables (see `.env.example`):
+
+| Variable | Purpose |
+| --- | --- |
+| `SESSION_SECRET` | express-session signing secret. Required when `NODE_ENV=production`; a random per-process value is used in development. |
+| `APP_TOKEN` | Application token. Required when `NODE_ENV=production`; randomly generated in development. |
+| `ADMIN_PASSWORD` | Password for the seeded `admin@snyk.io` user. Seeding is skipped when unset. |
+| `TLS_KEY` / `TLS_CERT` | Optional PEM paths; when both are set the server listens over HTTPS instead of HTTP. |
+
 ## Running with docker-compose
 ```bash
 docker-compose up --build

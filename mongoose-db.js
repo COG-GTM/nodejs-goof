@@ -49,7 +49,12 @@ User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
   console.log(users);
   if (users.length === 0) {
     console.log('no admin');
-    new User({ username: 'admin@snyk.io', password: 'SuperSecretPassword' }).save(function (err, user, count) {
+    var adminPassword = process.env.ADMIN_PASSWORD;
+    if (!adminPassword) {
+      console.warn('ADMIN_PASSWORD not set; skipping admin user creation');
+      return;
+    }
+    new User({ username: 'admin@snyk.io', password: adminPassword }).save(function (err, user, count) {
       if (err) {
         console.log('error saving admin user');
       }
