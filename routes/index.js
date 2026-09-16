@@ -18,6 +18,17 @@ var fs = require('fs');
 
 // prototype-pollution
 var _ = require('lodash');
+var rateLimit = require('../middleware/rate-limit');
+var limiter = rateLimit({ windowMs: 60 * 1000, max: 100 });
+
+function withLimit(handler) {
+  return function (req, res, next) {
+    return limiter(req, res, function (err) {
+      if (err) return next(err);
+      return handler(req, res, next);
+    });
+  };
+}
 
 exports.index = function (req, res, next) {
   Todo.
@@ -35,12 +46,16 @@ exports.index = function (req, res, next) {
 };
 
 exports.loginHandler = function (req, res, next) {
-  if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
+  var username = req.body.username;
+  var password = req.body.password;
+  if (typeof username !== 'string' || typeof password !== 'string') {
+    return res.status(401).send();
+  }
+  if (validator.isEmail(username)) {
+    User.find({ username: username, password: password }, function (err, users) {
       if (users.length > 0) {
         const redirectPage = req.body.redirectPage
         const session = req.session
-        const username = req.body.username
         return adminLoginSuccess(redirectPage, session, username, res)
       } else {
         return res.status(401).send()
@@ -57,36 +72,43 @@ function adminLoginSuccess(redirectPage, session, username, res) {
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (redirectPage) {
+  if (isSafeRedirect(redirectPage)) {
       return res.redirect(redirectPage)
   } else {
       return res.redirect('/admin')
   }
 }
 
-exports.login = function (req, res, next) {
+function isSafeRedirect(target) {
+  return typeof target === 'string' &&
+    target.startsWith('/') &&
+    !target.startsWith('//') &&
+    !target.startsWith('/\\');
+}
+
+exports.login = withLimit(function (req, res, next) {
   return res.render('admin', {
     title: 'Admin Access',
     granted: false,
     redirectPage: req.query.redirectPage
   });
-};
+});
 
-exports.admin = function (req, res, next) {
+exports.admin = withLimit(function (req, res, next) {
   return res.render('admin', {
     title: 'Admin Access Granted',
     granted: true,
   });
-};
+});
 
-exports.get_account_details = function(req, res, next) {
+exports.get_account_details = withLimit(function(req, res, next) {
   // @TODO need to add a database call to get the profile from the database
   // and provide it to the view to display
   const profile = {}
  	return res.render('account.hbs', profile)
-}
+})
 
-exports.save_account_details = function(req, res, next) {
+exports.save_account_details = withLimit(function(req, res, next) {
   // get the profile details from the JSON
 	const profile = req.body
   // validate the input
@@ -110,7 +132,7 @@ exports.save_account_details = function(req, res, next) {
     console.log('error in form details')
     return res.render('account.hbs')
   }
-}
+})
 
 exports.isLoggedIn = function (req, res, next) {
   if (req.session.loggedIn === 1) {
@@ -149,7 +171,7 @@ function parse(todo) {
   return t;
 }
 
-exports.create = function (req, res, next) {
+exports.create = withLimit(function (req, res, next) {
   // console.log('req.body: ' + JSON.stringify(req.body));
 
   var item = req.body.content;
@@ -185,7 +207,7 @@ exports.create = function (req, res, next) {
 
     // res.redirect('/#' + todo.content.toString('base64'));
   });
-};
+});
 
 exports.destroy = function (req, res, next) {
   Todo.findById(req.params.id, function (err, todo) {
@@ -238,7 +260,7 @@ function isBlank(str) {
   return (!str || /^\s*$/.test(str));
 }
 
-exports.import = function (req, res, next) {
+exports.import = withLimit(function (req, res, next) {
   if (!req.files) {
     res.send('No files were uploaded.');
     return;
@@ -293,9 +315,9 @@ exports.import = function (req, res, next) {
   });
 
   res.redirect('/');
-};
+});
 
-exports.about_new = function (req, res, next) {
+exports.about_new = withLimit(function (req, res, next) {
   console.log(JSON.stringify(req.query));
   return res.render("about_new.dust",
     {
@@ -303,7 +325,7 @@ exports.about_new = function (req, res, next) {
       subhead: 'Vulnerabilities at their best',
       device: req.query.device
     });
-};
+});
 
 // Prototype Pollution
 
