@@ -233,26 +233,27 @@ exports.import = async function (req, res, next) {
 
   var importFile = req.files.importFile;
   var data;
-  var { fileTypeFromBuffer } = await import('file-type');
-  var importedFileType = await fileTypeFromBuffer(importFile.data);
-  var zipFileExt = { ext: "zip", mime: "application/zip" };
-  if (!importedFileType) {
-    importedFileType = { ext: "txt", mime: "text/plain" };
-  }
-  if (importedFileType["mime"] === zipFileExt["mime"]) {
-    var zip = new AdmZip(importFile.data);
-    var extracted_path = fs.mkdtempSync(path.join(os.tmpdir(), 'extracted_files-'));
-    zip.extractAllTo(extracted_path, true);
-    data = "No backup.txt file found";
-    try {
-      data = fs.readFileSync(path.join(extracted_path, 'backup.txt'), 'ascii');
-    } catch (e) {
-    }
-  } else {
-    data = importFile.data.toString('ascii');
-  }
-  var lines = data.split('\n');
+  var extracted_path;
   try {
+    var { fileTypeFromBuffer } = await import('file-type');
+    var importedFileType = await fileTypeFromBuffer(importFile.data);
+    var zipFileExt = { ext: "zip", mime: "application/zip" };
+    if (!importedFileType) {
+      importedFileType = { ext: "txt", mime: "text/plain" };
+    }
+    if (importedFileType["mime"] === zipFileExt["mime"]) {
+      var zip = new AdmZip(importFile.data);
+      extracted_path = fs.mkdtempSync(path.join(os.tmpdir(), 'extracted_files-'));
+      zip.extractAllTo(extracted_path, true);
+      data = "No backup.txt file found";
+      try {
+        data = fs.readFileSync(path.join(extracted_path, 'backup.txt'), 'ascii');
+      } catch (e) {
+      }
+    } else {
+      data = importFile.data.toString('ascii');
+    }
+    var lines = data.split('\n');
     for (const line of lines) {
       var parts = line.split(',');
       var what = parts[0];
@@ -279,6 +280,10 @@ exports.import = async function (req, res, next) {
     }
   } catch (err) {
     return next(err);
+  } finally {
+    if (extracted_path) {
+      fs.rmSync(extracted_path, { recursive: true, force: true });
+    }
   }
 
   res.redirect('/');

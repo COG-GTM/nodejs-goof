@@ -72,15 +72,20 @@ async function seedAdmin() {
     console.log('ADMIN_USERNAME not set; skipping admin user seed');
     return;
   }
-  var existing = await User.findOne({ username: adminUsername }).exec();
-  if (existing) return;
-  console.log('no admin');
+  var admin = await User.findOne({ username: adminUsername }).exec();
+  if (admin && admin.passwordHash && admin.passwordSalt) return;
   var password = process.env.ADMIN_PASSWORD;
   if (!password) {
     password = crypto.randomBytes(12).toString('base64url');
     console.log('ADMIN_PASSWORD not set; generated admin password: ' + password);
   }
-  var admin = new User({ username: adminUsername });
+  if (!admin) {
+    console.log('no admin');
+    admin = new User({ username: adminUsername });
+  } else {
+    console.log('migrating legacy admin user to hashed password');
+    admin.set('password', undefined, { strict: false });
+  }
   await admin.setPassword(password);
   await admin.save();
 }

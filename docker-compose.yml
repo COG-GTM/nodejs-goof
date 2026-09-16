@@ -7,24 +7,23 @@ services:
       - DOCKER=1
       - ADMIN_USERNAME=admin@snyk.io
       - MYSQL_HOST=goof-mysql
-      - MYSQL_PASSWORD=root
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:-root}
     ports:
       - "3001:3001"
       - "9229:9229"
-    links:
-      - goof-mongo
     depends_on:
       - goof-mongo
+      - goof-mysql
   goof-mongo:
     container_name: goof-mongo
     image: mongo:6
     ports:
       - "27017:27017"
-  good-mysql:
+  goof-mysql:
     container_name: goof-mysql
     image: mysql:5
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       MYSQL_DATABASE: acme
     ports:
       - "3306:3306"

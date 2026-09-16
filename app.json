@@ -16,6 +16,18 @@
   "env": {
     "MONGOLAB_URI": {
       "required": true
+    },
+    "ADMIN_USERNAME": {
+      "description": "Admin login username seeded at startup",
+      "value": "admin@snyk.io"
+    },
+    "ADMIN_PASSWORD": {
+      "description": "Admin login password (random if omitted, printed to logs)",
+      "required": false
+    },
+    "SESSION_SECRET": {
+      "description": "Session signing secret",
+      "generator": "secret"
     }
   },
   "formation": {
