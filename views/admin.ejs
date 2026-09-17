@@ -1,6 +1,7 @@
 <% layout( 'layout' ) -%>
 <style>
 strong {font-weight: bold}
+.input-label {display: block; text-align: center}
 </style>
 <h1 id="page-title"><%= title %></h1>
 
@@ -8,11 +9,11 @@ strong {font-weight: bold}
   <form action="/login" method="post" accept-charset="utf-8">
     <% if( granted == false ){ %>
     <div class="item-new">
-      <center>username</center>
-      <input class="input" type="text" name="username" />
+      <label class="input-label" for="username">username</label>
+      <input class="input" type="text" id="username" name="username" />
       <br/>
-      <center>password</center>
-      <input class="input" type="password" name="password" />
+      <label class="input-label" for="password">password</label>
+      <input class="input" type="password" id="password" name="password" />
       <center>
       <input type="hidden" name="redirectPage" value="<%- redirectPage %>" />
       <input type="submit">
