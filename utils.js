@@ -1,4 +1,32 @@
+var hms = require('humanize-ms');
+var ms = require('ms');
+
 module.exports = {
+
+  // Turns a '<todo> in <duration>' string into '<todo> [<humanized duration>]'.
+  parse : function ( todo ){
+    var t = todo;
+
+    var remindToken = ' in ';
+    var reminder = t.toString().indexOf( remindToken );
+    if( reminder > 0 ){
+      var time = t.slice( reminder + remindToken.length );
+      time = time.replace( /\n$/, '' );
+
+      var period = hms( time );
+
+      // remove it
+      t = t.slice( 0, reminder );
+      if( typeof period != 'undefined' ){
+        t += ' [' + ms( period ) + ']';
+      }
+    }
+    return t;
+  },
+
+  isBlank : function ( str ){
+    return (!str || /^\s*$/.test( str ));
+  },
 
   ran_no : function ( min, max ){
     return Math.floor( Math.random() * ( max - min + 1 )) + min;

@@ -3,8 +3,6 @@ var mongoose = require('mongoose');
 var Todo = mongoose.model('Todo');
 var User = mongoose.model('User');
 // TODO:
-var hms = require('humanize-ms');
-var ms = require('ms');
 var streamBuffers = require('stream-buffers');
 var readline = require('readline');
 var moment = require('moment');
@@ -15,6 +13,7 @@ var validator = require('validator');
 var fileType = require('file-type');
 var AdmZip = require('adm-zip');
 var fs = require('fs');
+var path = require('path');
 
 // prototype-pollution
 var _ = require('lodash');
@@ -127,28 +126,6 @@ exports.logout = function (req, res, next) {
   })
 }
 
-function parse(todo) {
-  var t = todo;
-
-  var remindToken = ' in ';
-  var reminder = t.toString().indexOf(remindToken);
-  if (reminder > 0) {
-    var time = t.slice(reminder + remindToken.length);
-    time = time.replace(/\n$/, '');
-
-    var period = hms(time);
-
-    console.log('period: ' + period);
-
-    // remove it
-    t = t.slice(0, reminder);
-    if (typeof period != 'undefined') {
-      t += ' [' + ms(period) + ']';
-    }
-  }
-  return t;
-}
-
 exports.create = function (req, res, next) {
   // console.log('req.body: ' + JSON.stringify(req.body));
 
@@ -166,7 +143,7 @@ exports.create = function (req, res, next) {
     });
 
   } else {
-    item = parse(item);
+    item = utils.parse(item);
   }
 
   new Todo({
@@ -189,14 +166,13 @@ exports.create = function (req, res, next) {
 
 exports.destroy = function (req, res, next) {
   Todo.findById(req.params.id, function (err, todo) {
+    if (err) return next(err);
+    if (!todo) return res.status(404).send('Todo not found');
 
-    try {
-      todo.remove(function (err, todo) {
-        if (err) return next(err);
-        res.redirect('/');
-      });
-    } catch (e) {
-    }
+    todo.remove(function (err, todo) {
+      if (err) return next(err);
+      res.redirect('/');
+    });
   });
 };
 
@@ -217,6 +193,8 @@ exports.edit = function (req, res, next) {
 
 exports.update = function (req, res, next) {
   Todo.findById(req.params.id, function (err, todo) {
+    if (err) return next(err);
+    if (!todo) return res.status(404).send('Todo not found');
 
     todo.content = req.body.content;
     todo.updated_at = Date.now();
@@ -233,10 +211,6 @@ exports.current_user = function (req, res, next) {
 
   next();
 };
-
-function isBlank(str) {
-  return (!str || /^\s*$/.test(str));
-}
 
 exports.import = function (req, res, next) {
   if (!req.files) {
@@ -255,12 +229,11 @@ exports.import = function (req, res, next) {
     var zip = AdmZip(importFile.data);
     var extracted_path = "/tmp/extracted_files";
     zip.extractAllTo(extracted_path, true);
-    data = "No backup.txt file found";
-    fs.readFile('backup.txt', 'ascii', function (err, data) {
-      if (!err) {
-        data = data;
-      }
-    });
+    try {
+      data = fs.readFileSync(path.join(extracted_path, 'backup.txt'), 'ascii');
+    } catch (e) {
+      data = "No backup.txt file found";
+    }
   } else {
     data = importFile.data.toString('ascii');
   }
@@ -273,8 +246,8 @@ exports.import = function (req, res, next) {
     var locale = parts[2];
     var format = parts[3];
     var item = what;
-    if (!isBlank(what)) {
-      if (!isBlank(when) && !isBlank(locale) && !isBlank(format)) {
+    if (!utils.isBlank(what)) {
+      if (!utils.isBlank(when) && !utils.isBlank(locale) && !utils.isBlank(format)) {
         console.log('setting locale ' + parts[1]);
         moment.locale(locale);
         var d = moment(when);
@@ -287,7 +260,7 @@ exports.import = function (req, res, next) {
         updated_at: Date.now(),
       }).save(function (err, todo, count) {
         if (err) return next(err);
-        console.log('added ' + todo);
+        console.log('added ' + todo.content);
       });
     }
   });
