@@ -327,6 +327,10 @@ function findUser(auth) {
 }
 ///////////////////////////////////////////////////////////////////////////////
 
+// Exposed for tests.
+exports.chatUsers = users;
+exports.findUser = findUser;
+
 exports.chat = {
   get(req, res) {
     res.send(messages);
