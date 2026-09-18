@@ -46,6 +46,10 @@ mongoose.connect(mongoUri);
 
 User = mongoose.model('User');
 User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
+  if (err) {
+    console.log('error looking up admin user: ' + err.message);
+    return;
+  }
   console.log(users);
   if (users.length === 0) {
     console.log('no admin');
