@@ -188,6 +188,14 @@ To monitor this image and receive alerts with Snyk:
 snyk monitor --docker node:6-stretch
 ```
 
+### SBOM + scan pipeline, and a hardened image to compare against
+
+`scripts/container-scan.sh` builds the image above plus `Dockerfile.hardened` (a distroless
+Chainguard `node` base), generates SBOMs with syft, scans with grype/trivy, and writes a
+comparison report showing how many findings come from the OS layer vs. the app's own npm
+dependencies. The same pipeline runs in CI via `.github/workflows/container-scan.yml`.
+See [docs/CONTAINER_SCANNING.md](./docs/CONTAINER_SCANNING.md).
+
 ## Runtime Alerts
 
 Snyk provides the ability to monitor application runtime behavior and detect an invocation of a function is known to be vulnerable and used within open source dependencies that the application makes use of.

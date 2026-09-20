@@ -1,0 +1,56 @@
+name: "container scan"
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1" # weekly: catch newly published CVEs in unchanged images
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install syft, grype, trivy
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+          curl -sSfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+          syft version; grype version; trivy --version
+
+      - name: Build images, generate SBOMs, scan
+        run: scripts/container-scan.sh
+
+      - name: Publish report to job summary
+        run: cat scan-results/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload SBOMs and scan results
+        uses: actions/upload-artifact@v4
+        with:
+          name: container-scan-results
+          path: |
+            scan-results/report.md
+            scan-results/summary.json
+            scan-results/*.sbom.spdx.json
+            scan-results/*.sbom.cdx.json
+            scan-results/*.grype.txt
+            scan-results/goof_hardened.grype.json
+            scan-results/goof_hardened.trivy.json
+
+      # Only the image we would actually ship goes to the Security tab.
+      - name: Upload hardened-image findings to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: scan-results/goof_hardened.grype.sarif
+          category: container-goof-hardened
+
+      # Gate on the shippable image. goof is vulnerable by design so this step
+      # is expected to fail; it is non-blocking here to keep the demo runnable.
+      - name: Gate on critical vulnerabilities (goof:hardened)
+        continue-on-error: true
+        run: OUT_DIR=scan-results/gate FAIL_ON=critical scripts/container-scan.sh --no-build goof:hardened

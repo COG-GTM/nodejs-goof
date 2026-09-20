@@ -1,0 +1,26 @@
+# Hardened variant of ./Dockerfile used by scripts/container-scan.sh to show
+# how much of the image CVE count comes from the base OS layer vs. the app.
+#
+# Build stage: full toolchain (npm, shell) on the Chainguard -dev image.
+FROM cgr.dev/chainguard/node:latest-dev AS build
+
+WORKDIR /app
+COPY --chown=node:node package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts
+COPY --chown=node:node app.js mongoose-db.js typeorm-db.js utils.js ./
+COPY --chown=node:node routes ./routes
+COPY --chown=node:node views ./views
+COPY --chown=node:node public ./public
+COPY --chown=node:node entity ./entity
+COPY --chown=node:node service ./service
+
+# Runtime stage: distroless Chainguard node image (no shell, no package
+# manager, non-root `node` user). Only the app and its production deps ship.
+FROM cgr.dev/chainguard/node:latest
+
+WORKDIR /app
+COPY --from=build --chown=node:node /app /app
+
+ENV NODE_OPTIONS=--openssl-legacy-provider
+EXPOSE 3001
+ENTRYPOINT ["node", "app.js"]
