@@ -1,6 +1,10 @@
 # FROM node:6-stretch
 FROM node:18.13.0
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libxslt1.1 libxslt1-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN mkdir /usr/src/goof
 RUN mkdir /tmp/extracted_files
 COPY . /usr/src/goof
