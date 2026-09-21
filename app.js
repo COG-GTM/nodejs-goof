@@ -9,7 +9,8 @@ require('./typeorm-db')
 var st = require('st');
 var crypto = require('crypto');
 var express = require('express');
-var http = require('http');
+var https = require('https');
+var fs = require('fs');
 var path = require('path');
 var ejsEngine = require('ejs-locals');
 var bodyParser = require('body-parser');
@@ -26,8 +27,52 @@ var cons = require('consolidate');
 const hbs = require('hbs')
 
 var app = express();
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
 var routes = require('./routes');
 var routesUsers = require('./routes/users.js')
+
+var sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('SESSION_SECRET environment variable must be set in production');
+  }
+  sessionSecret = crypto.randomBytes(32).toString('hex');
+  console.warn('SESSION_SECRET not set; using a random secret for this process (sessions will not survive restarts)');
+}
+
+var token = process.env.APP_TOKEN;
+if (!token) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('APP_TOKEN environment variable must be set in production');
+  }
+  token = crypto.randomBytes(32).toString('hex');
+}
+app.set('appToken', token);
+
+// Same-origin enforcement for state-changing requests (CSRF defence):
+// browsers always send Origin (or Referer) on cross-site form posts, so a
+// mismatching value is rejected. Requests with neither header (curl, same-origin
+// with strict referrer policy) are allowed through unchanged.
+function sameOriginGuard(req, res, next) {
+  if (['GET', 'HEAD', 'OPTIONS'].indexOf(req.method) !== -1) {
+    return next();
+  }
+  var source = req.get('origin') || req.get('referer');
+  if (!source) {
+    return next();
+  }
+  var sourceHost;
+  try {
+    sourceHost = new URL(source).host;
+  } catch (e) {
+    return res.status(403).send('Invalid request origin');
+  }
+  if (sourceHost !== req.get('host')) {
+    return res.status(403).send('Cross-origin request rejected');
+  }
+  next();
+}
 
 // all environments
 app.set('port', process.env.PORT || 3001);
@@ -40,10 +85,18 @@ app.set('view engine', 'ejs');
 app.use(logger('dev'));
 app.use(methodOverride());
 app.use(session({
-  secret: 'keyboard cat',
+  secret: sessionSecret,
   name: 'connect.sid',
-  cookie: { path: '/' }
+  resave: false,
+  saveUninitialized: true,
+  cookie: {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production'
+  }
 }))
+app.use(sameOriginGuard);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(fileUpload());
@@ -80,9 +133,17 @@ if (app.get('env') == 'development') {
   app.use(errorHandler());
 }
 
-var token = 'SECRET_TOKEN_f8ed84e8f41e4146403dd4a6bbcea5e418d23a9';
-console.log('token: ' + token);
-
-http.createServer(app).listen(app.get('port'), function () {
+// Serve TLS directly when a key/cert pair is provided; otherwise plain HTTP is
+// used for local development and TLS is expected to be terminated by a proxy.
+function onListening() {
   console.log('Express server listening on port ' + app.get('port'));
-});
+}
+
+if (process.env.TLS_KEY && process.env.TLS_CERT) {
+  https.createServer({
+    key: fs.readFileSync(process.env.TLS_KEY),
+    cert: fs.readFileSync(process.env.TLS_CERT)
+  }, app).listen(app.get('port'), onListening);
+} else {
+  app.listen(app.get('port'), onListening);
+}
