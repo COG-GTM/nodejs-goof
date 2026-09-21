@@ -29,6 +29,8 @@ var app = express();
 var routes = require('./routes');
 var routesUsers = require('./routes/users.js')
 
+var sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+
 // all environments
 app.set('port', process.env.PORT || 3001);
 app.engine('ejs', ejsEngine);
@@ -40,7 +42,7 @@ app.set('view engine', 'ejs');
 app.use(logger('dev'));
 app.use(methodOverride());
 app.use(session({
-  secret: 'keyboard cat',
+  secret: sessionSecret,
   name: 'connect.sid',
   cookie: { path: '/' }
 }))
