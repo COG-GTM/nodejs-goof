@@ -35,26 +35,24 @@ exports.index = function (req, res, next) {
 };
 
 exports.loginHandler = function (req, res, next) {
-  if (typeof req.body.username !== 'string' || typeof req.body.password !== 'string') {
+  var username = req.body.username
+  var password = req.body.password
+
+  if (typeof username !== 'string' || typeof password !== 'string' || !validator.isEmail(username)) {
     return res.status(401).send()
   }
 
-  var username = String(req.body.username)
-  var password = String(req.body.password)
+  User.find({ username: { $eq: username }, password: { $eq: password } }, function (err, users) {
+    if (err) return next(err)
 
-  if (validator.isEmail(username)) {
-    User.find({ username: { $eq: username }, password: { $eq: password } }, function (err, users) {
-      if (users.length > 0) {
-        const redirectPage = req.body.redirectPage
-        const session = req.session
-        return adminLoginSuccess(redirectPage, session, username, res)
-      } else {
-        return res.status(401).send()
-      }
-    });
-  } else {
-    return res.status(401).send()
-  }
+    if (users.length > 0) {
+      const redirectPage = req.body.redirectPage
+      const session = req.session
+      return adminLoginSuccess(redirectPage, session, username, res)
+    } else {
+      return res.status(401).send()
+    }
+  });
 };
 
 function adminLoginSuccess(redirectPage, session, username, res) {
