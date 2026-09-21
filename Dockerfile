@@ -1,5 +1,7 @@
 # FROM node:6-stretch
-FROM node:18.13.0
+FROM node:22.22.2
+
+RUN npm install -g npm@11.11.1
 
 RUN mkdir /usr/src/goof
 RUN mkdir /tmp/extracted_files
