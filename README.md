@@ -48,6 +48,16 @@ To bulk delete the current list of TODO items from the DB run:
 npm run cleanup
 ```
 
+### Functional tests
+`npm test` runs a Snyk vulnerability scan. The functional test suite, which boots the
+express app on an ephemeral port and exercises the route table and its auth guards, runs
+separately with the Node.js built-in test runner:
+```bash
+npm run test:unit
+```
+No database is needed: the routes under test either avoid the database or stub the user
+lookup.
+
 ## Exploiting the vulnerabilities
 
 This app uses npm dependencies holding known vulnerabilities,
