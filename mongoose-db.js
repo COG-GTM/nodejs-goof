@@ -1,5 +1,6 @@
 var mongoose = require('mongoose');
 var cfenv = require("cfenv");
+var crypto = require('crypto');
 var Schema = mongoose.Schema;
 
 var Todo = new Schema({
@@ -11,14 +12,35 @@ mongoose.model('Todo', Todo);
 
 var User = new Schema({
   username: String,
-  password: String,
+  passwordHash: String,
+  passwordSalt: String,
 });
+
+function scrypt(password, salt) {
+  return new Promise(function (resolve, reject) {
+    crypto.scrypt(password, salt, 64, function (err, key) {
+      if (err) return reject(err);
+      resolve(key);
+    });
+  });
+}
+
+User.methods.setPassword = async function (password) {
+  this.passwordSalt = crypto.randomBytes(16).toString('hex');
+  this.passwordHash = (await scrypt(password, this.passwordSalt)).toString('hex');
+};
+
+User.methods.verifyPassword = async function (password) {
+  if (!this.passwordHash || !this.passwordSalt) return false;
+  var expected = Buffer.from(this.passwordHash, 'hex');
+  var actual = await scrypt(password, this.passwordSalt);
+  return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+};
 
 mongoose.model('User', User);
 
 // CloudFoundry env vars
 var mongoCFUri = cfenv.getAppEnv().getServiceURL('goof-mongo');
-console.log(JSON.stringify(cfenv.getAppEnv()));
 
 // Default Mongo URI is local
 const DOCKER = process.env.DOCKER
@@ -42,17 +64,35 @@ if (mongoCFUri) {
 
 console.log("Using Mongo URI " + mongoUri);
 
-mongoose.connect(mongoUri);
-
 User = mongoose.model('User');
-User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
-  console.log(users);
-  if (users.length === 0) {
-    console.log('no admin');
-    new User({ username: 'admin@snyk.io', password: 'SuperSecretPassword' }).save(function (err, user, count) {
-      if (err) {
-        console.log('error saving admin user');
-      }
-    });
+
+async function seedAdmin() {
+  var adminUsername = process.env.ADMIN_USERNAME;
+  if (!adminUsername) {
+    console.log('ADMIN_USERNAME not set; skipping admin user seed');
+    return;
   }
-});
+  var admin = await User.findOne({ username: adminUsername }).exec();
+  if (admin && admin.passwordHash && admin.passwordSalt) return;
+  var password = process.env.ADMIN_PASSWORD;
+  if (!password) {
+    password = crypto.randomBytes(12).toString('base64url');
+    console.log('ADMIN_PASSWORD not set; generated admin password: ' + password);
+  }
+  if (!admin) {
+    console.log('no admin');
+    admin = new User({ username: adminUsername });
+  } else {
+    console.log('migrating legacy admin user to hashed password');
+    admin.set('password', undefined, { strict: false });
+  }
+  await admin.setPassword(password);
+  await admin.save();
+}
+
+mongoose.connect(mongoUri)
+  .then(seedAdmin)
+  .catch(function (err) {
+    console.log('error connecting to MongoDB or seeding admin user');
+    console.error(err);
+  });

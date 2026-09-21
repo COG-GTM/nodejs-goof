@@ -1,8 +1,8 @@
-<% layout( 'layout' ) -%>
 
 <h1 id="page-title"><%= title %></h1>
 <div id="list">
   <form action="/create" method="post" accept-charset="utf-8">
+      <input type="hidden" name="_csrf" value="<%= _csrf %>" />
     <div class="item-new">
       <input class="input" type="text" name="content" />
     </div>
@@ -17,6 +17,7 @@
 
     <% if( todo._id == current ){ %>
     <form class="update-form" action="/update/<%= todo._id %>" method="post" accept-charset="utf-8">
+      <input type="hidden" name="_csrf" value="<%= _csrf %>" />
       <input class="update-input" type="text" name="content" value="<%= todo.content %>" />
     </form>
     <% }else{ %>

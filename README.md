@@ -16,16 +16,18 @@ mongod &
 
 git clone https://github.com/snyk-labs/nodejs-goof
 npm install
-npm start
+ADMIN_USERNAME=admin@snyk.io ADMIN_PASSWORD=<choose-a-password> npm start
 ```
 This will run Goof locally, using a local mongo on the default port and listening on port 3001 (http://localhost:3001)
 
-Note: You *have* to use an old version of MongoDB version due to some of these old libraries' database server APIs. MongoDB 3 is known to work ok.
+`ADMIN_USERNAME` is required to seed the admin account; if `ADMIN_PASSWORD` is unset a random one is generated and printed at startup. Set `SESSION_SECRET` for a stable session-signing key, and `TLS_KEY`/`TLS_CERT` to serve over HTTPS. MySQL credentials are read from `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD` and `MYSQL_DATABASE`.
+
+Note: MongoDB 4.0 or newer is required by the current mongoose version.
 
 You can also run the MongoDB server individually via Docker, such as:
 
 ```sh
-docker run --rm -p 27017:27017 mongo:3
+docker run --rm -p 27017:27017 mongo:6
 ```
 
 ## Running with docker-compose
@@ -85,7 +87,7 @@ The form is completely functional. The way it works is, it receives the profile 
 You'd think that what's the worst that can happen because we use a validation to confirm the expected input, however the validation doesn't take into account a new field that can be added to the object, such as `layout`, which when passed to a template language, could lead to Local File Inclusion (Path Traversal) vulnerabilities. Here is a proof-of-concept showing it:
 
 ```sh
-curl -X 'POST' --cookie c.txt --cookie-jar c.txt -H 'Content-Type: application/json' --data-binary '{"username": "admin@snyk.io", "password": "SuperSecretPassword"}' 'http://localhost:3001/login'
+curl -X 'POST' --cookie c.txt --cookie-jar c.txt -H 'Content-Type: application/json' --data-binary '{"username": "admin@snyk.io", "password": "$ADMIN_PASSWORD"}' 'http://localhost:3001/login'
 ```
 
 ```sh
@@ -118,7 +120,7 @@ echo '{"username":"admin@snyk.io", "password":"WrongPassword"}' | http --json $G
 
 And another request, as denoted with the following JSON request to sign-in as the admin user works as expected:
 ```sh
-echo '{"username":"admin@snyk.io", "password":"SuperSecretPassword"}' | http --json $GOOF_HOST/login -v
+echo '{"username":"admin@snyk.io", "password":"$ADMIN_PASSWORD"}' | http --json $GOOF_HOST/login -v
 ```
 
 However, what if the password wasn't a string? what if it was an object? Why would an object be harmful or even considered an issue?

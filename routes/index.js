@@ -1,55 +1,58 @@
-var utils = require('../utils');
 var mongoose = require('mongoose');
 var Todo = mongoose.model('Todo');
 var User = mongoose.model('User');
-// TODO:
 var hms = require('humanize-ms');
 var ms = require('ms');
-var streamBuffers = require('stream-buffers');
-var readline = require('readline');
 var moment = require('moment');
-var exec = require('child_process').exec;
+var execFile = require('child_process').execFile;
 var validator = require('validator');
+var rateLimit = require('express-rate-limit');
+var path = require('path');
+var os = require('os');
+var crypto = require('crypto');
 
-// zip-slip
-var fileType = require('file-type');
 var AdmZip = require('adm-zip');
 var fs = require('fs');
 
-// prototype-pollution
-var _ = require('lodash');
+exports.loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20 });
+exports.importLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10 });
 
-exports.index = function (req, res, next) {
-  Todo.
-    find({}).
-    sort('-updated_at').
-    exec(function (err, todos) {
-      if (err) return next(err);
-
-      res.render('index', {
-        title: 'Patch TODO List',
-        subhead: 'Vulnerabilities at their best',
-        todos: todos,
-      });
+exports.index = async function (req, res, next) {
+  try {
+    var todos = await Todo.find({}).sort('-updated_at').exec();
+    res.render('index', {
+      title: 'Patch TODO List',
+      subhead: 'Vulnerabilities at their best',
+      todos: todos,
     });
-};
-
-exports.loginHandler = function (req, res, next) {
-  if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
-      if (users.length > 0) {
-        const redirectPage = req.body.redirectPage
-        const session = req.session
-        const username = req.body.username
-        return adminLoginSuccess(redirectPage, session, username, res)
-      } else {
-        return res.status(401).send()
-      }
-    });
-  } else {
-    return res.status(401).send()
+  } catch (err) {
+    next(err);
   }
 };
+
+exports.loginHandler = async function (req, res, next) {
+  var username = req.body.username;
+  var password = req.body.password;
+  if (typeof username !== 'string' || typeof password !== 'string' || !validator.isEmail(username)) {
+    return res.status(401).send();
+  }
+  try {
+    var user = await User.findOne({ username: { $eq: String(username) } }).exec();
+    if (user && await user.verifyPassword(password)) {
+      return adminLoginSuccess(req.body.redirectPage, req.session, username, res);
+    }
+    return res.status(401).send();
+  } catch (err) {
+    next(err);
+  }
+};
+
+var ALLOWED_REDIRECTS = ['/', '/admin', '/account_details', '/about_new'];
+
+function safeRedirectPath(target) {
+  var idx = ALLOWED_REDIRECTS.indexOf(target);
+  return idx === -1 ? null : ALLOWED_REDIRECTS[idx];
+}
 
 function adminLoginSuccess(redirectPage, session, username, res) {
   session.loggedIn = 1
@@ -57,18 +60,14 @@ function adminLoginSuccess(redirectPage, session, username, res) {
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (redirectPage) {
-      return res.redirect(redirectPage)
-  } else {
-      return res.redirect('/admin')
-  }
+  return res.redirect(safeRedirectPath(redirectPage) || '/admin')
 }
 
 exports.login = function (req, res, next) {
   return res.render('admin', {
     title: 'Admin Access',
     granted: false,
-    redirectPage: req.query.redirectPage
+    redirectPage: safeRedirectPath(req.query.redirectPage) || ''
   });
 };
 
@@ -83,7 +82,7 @@ exports.get_account_details = function(req, res, next) {
   // @TODO need to add a database call to get the profile from the database
   // and provide it to the view to display
   const profile = {}
- 	return res.render('account.hbs', profile)
+ 	return res.render('account.hbs', Object.assign({ layout: false }, profile))
 }
 
 exports.save_account_details = function(req, res, next) {
@@ -104,11 +103,11 @@ exports.save_account_details = function(req, res, next) {
     profile.lastname = validator.rtrim(profile.lastname)
 
     // render the view
-    return res.render('account.hbs', profile)
+    return res.render('account.hbs', Object.assign({ layout: false }, profile))
   } else {
     // if input validation fails, we just render the view as is
     console.log('error in form details')
-    return res.render('account.hbs')
+    return res.render('account.hbs', { layout: false })
   }
 }
 
@@ -149,83 +148,71 @@ function parse(todo) {
   return t;
 }
 
-exports.create = function (req, res, next) {
-  // console.log('req.body: ' + JSON.stringify(req.body));
-
+exports.create = async function (req, res, next) {
   var item = req.body.content;
   var imgRegex = /\!\[alt text\]\((http.*)\s\".*/;
   if (typeof (item) == 'string' && item.match(imgRegex)) {
     var url = item.match(imgRegex)[1];
     console.log('found img: ' + url);
 
-    exec('identify ' + url, function (err, stdout, stderr) {
-      console.log(err);
-      if (err !== null) {
-        console.log('Error (' + err + '):' + stderr);
-      }
-    });
+    if (validator.isURL(url, { protocols: ['http', 'https'], require_protocol: true })) {
+      execFile('identify', [url], function (err, stdout, stderr) {
+        if (err !== null) {
+          console.log('Error (' + err + '):' + stderr);
+        }
+      });
+    }
 
   } else {
     item = parse(item);
   }
 
-  new Todo({
-    content: item,
-    updated_at: Date.now(),
-  }).save(function (err, todo, count) {
-    if (err) return next(err);
-
-    /*
-    res.setHeader('Data', todo.content.toString('base64'));
-    res.redirect('/');
-    */
+  try {
+    var todo = await new Todo({
+      content: item,
+      updated_at: Date.now(),
+    }).save();
 
     res.setHeader('Location', '/');
     res.status(302).send(todo.content.toString('base64'));
-
-    // res.redirect('/#' + todo.content.toString('base64'));
-  });
+  } catch (err) {
+    next(err);
+  }
 };
 
-exports.destroy = function (req, res, next) {
-  Todo.findById(req.params.id, function (err, todo) {
-
-    try {
-      todo.remove(function (err, todo) {
-        if (err) return next(err);
-        res.redirect('/');
-      });
-    } catch (e) {
-    }
-  });
+exports.destroy = async function (req, res, next) {
+  try {
+    await Todo.findByIdAndDelete(req.params.id).exec();
+    res.redirect('/');
+  } catch (err) {
+    next(err);
+  }
 };
 
-exports.edit = function (req, res, next) {
-  Todo.
-    find({}).
-    sort('-updated_at').
-    exec(function (err, todos) {
-      if (err) return next(err);
-
-      res.render('edit', {
-        title: 'TODO',
-        todos: todos,
-        current: req.params.id
-      });
+exports.edit = async function (req, res, next) {
+  try {
+    var todos = await Todo.find({}).sort('-updated_at').exec();
+    res.render('edit', {
+      title: 'TODO',
+      todos: todos,
+      current: req.params.id
     });
+  } catch (err) {
+    next(err);
+  }
 };
 
-exports.update = function (req, res, next) {
-  Todo.findById(req.params.id, function (err, todo) {
-
+exports.update = async function (req, res, next) {
+  try {
+    var todo = await Todo.findById(req.params.id).exec();
+    if (!todo) return res.redirect('/');
     todo.content = req.body.content;
     todo.updated_at = Date.now();
-    todo.save(function (err, todo, count) {
-      if (err) return next(err);
-
-      res.redirect('/');
-    });
-  });
+    await todo.save();
+    res.redirect('/');
+  } catch (err) {
+    next(err);
+  }
 };
 
 // ** express turns the cookie key to lowercase **
@@ -238,83 +225,89 @@ function isBlank(str) {
   return (!str || /^\s*$/.test(str));
 }
 
-exports.import = function (req, res, next) {
-  if (!req.files) {
+exports.import = async function (req, res, next) {
+  if (!req.files || !req.files.importFile) {
     res.send('No files were uploaded.');
     return;
   }
 
   var importFile = req.files.importFile;
   var data;
-  var importedFileType = fileType(importFile.data);
-  var zipFileExt = { ext: "zip", mime: "application/zip" };
-  if (importedFileType === null) {
-    importedFileType = { ext: "txt", mime: "text/plain" };
-  }
-  if (importedFileType["mime"] === zipFileExt["mime"]) {
-    var zip = AdmZip(importFile.data);
-    var extracted_path = "/tmp/extracted_files";
-    zip.extractAllTo(extracted_path, true);
-    data = "No backup.txt file found";
-    fs.readFile('backup.txt', 'ascii', function (err, data) {
-      if (!err) {
-        data = data;
-      }
-    });
-  } else {
-    data = importFile.data.toString('ascii');
-  }
-  var lines = data.split('\n');
-  lines.forEach(function (line) {
-    var parts = line.split(',');
-    var what = parts[0];
-    console.log('importing ' + what);
-    var when = parts[1];
-    var locale = parts[2];
-    var format = parts[3];
-    var item = what;
-    if (!isBlank(what)) {
-      if (!isBlank(when) && !isBlank(locale) && !isBlank(format)) {
-        console.log('setting locale ' + parts[1]);
-        moment.locale(locale);
-        var d = moment(when);
-        console.log('formatting ' + d);
-        item += ' [' + d.format(format) + ']';
-      }
-
-      new Todo({
-        content: item,
-        updated_at: Date.now(),
-      }).save(function (err, todo, count) {
-        if (err) return next(err);
-        console.log('added ' + todo);
-      });
+  var extracted_path;
+  try {
+    var { fileTypeFromBuffer } = await import('file-type');
+    var importedFileType = await fileTypeFromBuffer(importFile.data);
+    var zipFileExt = { ext: "zip", mime: "application/zip" };
+    if (!importedFileType) {
+      importedFileType = { ext: "txt", mime: "text/plain" };
     }
-  });
+    if (importedFileType["mime"] === zipFileExt["mime"]) {
+      var zip = new AdmZip(importFile.data);
+      extracted_path = fs.mkdtempSync(path.join(os.tmpdir(), 'extracted_files-'));
+      zip.extractAllTo(extracted_path, true);
+      data = "No backup.txt file found";
+      try {
+        data = fs.readFileSync(path.join(extracted_path, 'backup.txt'), 'ascii');
+      } catch (e) {
+      }
+    } else {
+      data = importFile.data.toString('ascii');
+    }
+    var lines = data.split('\n');
+    for (const line of lines) {
+      var parts = line.split(',');
+      var what = parts[0];
+      console.log('importing ' + what);
+      var when = parts[1];
+      var locale = parts[2];
+      var format = parts[3];
+      var item = what;
+      if (!isBlank(what)) {
+        if (!isBlank(when) && !isBlank(locale) && !isBlank(format)) {
+          console.log('setting locale ' + parts[1]);
+          moment.locale(locale);
+          var d = moment(when);
+          console.log('formatting ' + d);
+          item += ' [' + d.format(format) + ']';
+        }
+
+        var todo = await new Todo({
+          content: item,
+          updated_at: Date.now(),
+        }).save();
+        console.log('added ' + todo);
+      }
+    }
+  } catch (err) {
+    return next(err);
+  } finally {
+    if (extracted_path) {
+      fs.rmSync(extracted_path, { recursive: true, force: true });
+    }
+  }
 
   res.redirect('/');
 };
 
 exports.about_new = function (req, res, next) {
-  console.log(JSON.stringify(req.query));
   return res.render("about_new.dust",
     {
+      layout: false,
       title: 'Patch TODO List',
       subhead: 'Vulnerabilities at their best',
-      device: req.query.device
+      device: req.query.device,
+      isDesktop: req.query.device === 'Desktop'
     });
 };
-
-// Prototype Pollution
 
 ///////////////////////////////////////////////////////////////////////////////
 // In order of simplicity we are not using any database. But you can write the
 // same logic using MongoDB.
 const users = [
   // You know password for the user.
-  { name: 'user', password: 'pwd' },
+  { name: 'user', password: process.env.CHAT_USER_PASSWORD || crypto.randomBytes(8).toString('hex') },
   // You don't know password for the admin.
-  { name: 'admin', password: Math.random().toString(32), canDelete: true },
+  { name: 'admin', password: crypto.randomBytes(16).toString('hex'), canDelete: true },
 ];
 
 let messages = [];
@@ -339,16 +332,18 @@ exports.chat = {
       return;
     }
 
+    const incoming = req.body.message;
     const message = {
-      // Default message icon. Cen be overwritten by user.
+      // Default message icon. Can be overwritten by user.
       icon: '👋',
-    };
-
-    _.merge(message, req.body.message, {
+      text: incoming && typeof incoming.text === 'string' ? incoming.text : '',
       id: lastId++,
       timestamp: Date.now(),
       userName: user.name,
-    });
+    };
+    if (incoming && typeof incoming.icon === 'string') {
+      message.icon = incoming.icon;
+    }
 
     messages.push(message);
     res.send({ ok: true });
