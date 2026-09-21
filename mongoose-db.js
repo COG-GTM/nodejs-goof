@@ -1,5 +1,6 @@
 var mongoose = require('mongoose');
 var cfenv = require("cfenv");
+var seedAdmin = require('./seed-admin').seedAdmin;
 var Schema = mongoose.Schema;
 
 var Todo = new Schema({
@@ -44,15 +45,4 @@ console.log("Using Mongo URI " + mongoUri);
 
 mongoose.connect(mongoUri);
 
-User = mongoose.model('User');
-User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
-  console.log(users);
-  if (users.length === 0) {
-    console.log('no admin');
-    new User({ username: 'admin@snyk.io', password: 'SuperSecretPassword' }).save(function (err, user, count) {
-      if (err) {
-        console.log('error saving admin user');
-      }
-    });
-  }
-});
+seedAdmin(mongoose.model('User'));
