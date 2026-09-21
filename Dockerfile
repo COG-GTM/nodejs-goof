@@ -1,5 +1,9 @@
 # FROM node:6-stretch
-FROM node:18.13.0
+FROM node:18.20.5
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends --only-upgrade libglib2.0-0 libglib2.0-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir /usr/src/goof
 RUN mkdir /tmp/extracted_files
