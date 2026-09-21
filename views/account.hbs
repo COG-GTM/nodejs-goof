@@ -1,6 +1,7 @@
 
 <style>
 strong {font-weight: bold}
+.field-label {display: block; text-align: center}
 </style>
 {{#if firstname}}
     <h1 id="page-title">Account details for: {{firstname}}</h1>
@@ -14,24 +15,24 @@ strong {font-weight: bold}
 <div id="list">
   <form action="/account_details" method="POST" accept-charset="utf-8">
     <div class="item-new">
-      <center>First name</center>
-      <input class="input" type="text" name="firstname" value="{{firstname}}" />
+      <label class="field-label" for="firstname">First name</label>
+      <input class="input" type="text" id="firstname" name="firstname" value="{{firstname}}" />
       <br/>
 
-     <center>Last name</center>
-     <input class="input" type="text" name="lastname"  value="{{lastname}}" />
+     <label class="field-label" for="lastname">Last name</label>
+     <input class="input" type="text" id="lastname" name="lastname"  value="{{lastname}}" />
      <br/>
 
-     <center>Country</center>
-     <input class="input" type="text" name="country" value="{{country}}" />
+     <label class="field-label" for="country">Country</label>
+     <input class="input" type="text" id="country" name="country" value="{{country}}" />
      <br/>
 
-     <center>Phone number</center>
-     <input class="input" type="text" name="phone" value="{{phone}}" />
+     <label class="field-label" for="phone">Phone number</label>
+     <input class="input" type="text" id="phone" name="phone" value="{{phone}}" />
      <br/>
 
-     <center>Email</center>
-     <input class="input" type="text" name="email" value="{{email}}" />
+     <label class="field-label" for="email">Email</label>
+     <input class="input" type="text" id="email" name="email" value="{{email}}" />
      <br/>
 
     </div>
