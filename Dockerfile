@@ -1,6 +1,19 @@
 # FROM node:6-stretch
 FROM node:18.13.0
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends --only-upgrade \
+        imagemagick \
+        imagemagick-6-common \
+        imagemagick-6.q16 \
+        libmagickcore-dev \
+        libmagickcore-6.q16-6 \
+        libmagickcore-6.q16-dev \
+        libmagickwand-dev \
+        libmagickwand-6.q16-6 \
+        libmagickwand-6.q16-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN mkdir /usr/src/goof
 RUN mkdir /tmp/extracted_files
 COPY . /usr/src/goof
