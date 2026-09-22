@@ -15,6 +15,7 @@ var validator = require('validator');
 var fileType = require('file-type');
 var AdmZip = require('adm-zip');
 var fs = require('fs');
+var path = require('path');
 
 // prototype-pollution
 var _ = require('lodash');
@@ -238,6 +239,47 @@ function isBlank(str) {
   return (!str || /^\s*$/.test(str));
 }
 
+// Creates dir (and its missing parents) and fails if the resulting directory
+// resolves outside of root, e.g. because one of its components is a symlink.
+function mkdirWithin(root, dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  var real = fs.realpathSync(dir);
+  if (real !== root && real.indexOf(root + path.sep) !== 0) {
+    throw new Error('archive entry escapes the extraction directory');
+  }
+}
+
+// Extracts every entry of a zip archive below targetDir, rejecting entries
+// whose destination would fall outside of it (Zip Slip).
+function safeExtractAll(zip, targetDir) {
+  fs.mkdirSync(targetDir, { recursive: true });
+  var root = fs.realpathSync(targetDir);
+
+  zip.getEntries().forEach(function (entry) {
+    var entryName = entry.entryName;
+    var segments = entryName.split(/[\\/]/);
+    if (path.isAbsolute(entryName) || entryName.indexOf('\0') !== -1 || segments.indexOf('..') !== -1) {
+      throw new Error('archive entry escapes the extraction directory');
+    }
+
+    var destination = path.resolve(root, entryName);
+    if (destination !== root && destination.indexOf(root + path.sep) !== 0) {
+      throw new Error('archive entry escapes the extraction directory');
+    }
+
+    if (entry.isDirectory) {
+      mkdirWithin(root, destination);
+      return;
+    }
+
+    mkdirWithin(root, path.dirname(destination));
+    if (fs.existsSync(destination) && fs.lstatSync(destination).isSymbolicLink()) {
+      fs.unlinkSync(destination);
+    }
+    fs.writeFileSync(destination, entry.getData());
+  });
+}
+
 exports.import = function (req, res, next) {
   if (!req.files) {
     res.send('No files were uploaded.');
@@ -254,7 +296,13 @@ exports.import = function (req, res, next) {
   if (importedFileType["mime"] === zipFileExt["mime"]) {
     var zip = AdmZip(importFile.data);
     var extracted_path = "/tmp/extracted_files";
-    zip.extractAllTo(extracted_path, true);
+    try {
+      safeExtractAll(zip, extracted_path);
+    } catch (err) {
+      console.error('rejected archive: ' + err.message);
+      res.status(400).send('The uploaded archive contains unsafe file paths and was rejected.');
+      return;
+    }
     data = "No backup.txt file found";
     fs.readFile('backup.txt', 'ascii', function (err, data) {
       if (!err) {
