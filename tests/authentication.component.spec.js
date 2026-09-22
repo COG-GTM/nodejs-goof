@@ -1,15 +1,17 @@
 const assert = require('assert)')
+const crypto = require('crypto')
 
 describe('Component Tests', () => {
   describe('PasswordComponent', () => {
 
     let comp
     let service
+    const testPassword = crypto.randomBytes(12).toString('hex')
 
     test('should show error if passwords do not match', () => {
       // GIVEN
-      comp.password = 'password1';
-      comp.confirmPassword = 'password2';
+      comp.password = testPassword;
+      comp.confirmPassword = testPassword + 'mismatch';
       // WHEN
       comp.changePassword();
       // THEN
@@ -20,19 +22,18 @@ describe('Component Tests', () => {
 
     test('should call Auth.changePassword when passwords match', () => {
       // GIVEN
-      // deepcode ignore NoHardcodedPasswords/test: <please specify a reason of ignoring this>
-      comp.password = comp.confirmPassword = 'myPassword';
+      comp.password = comp.confirmPassword = testPassword;
 
       // WHEN
       comp.changePassword();
 
       // THEN
-      assert(service.save).toHaveBeenCalledWith('myPassword');
+      assert(service.save).toHaveBeenCalledWith(testPassword);
     });
 
     test('should set success to OK upon success', function() {
       // GIVEN
-      comp.password = comp.confirmPassword = 'myPassword';
+      comp.password = comp.confirmPassword = testPassword;
 
       // WHEN
       comp.changePassword();
@@ -45,7 +46,7 @@ describe('Component Tests', () => {
 
     test('should notify of error if change password fails', function() {
       // GIVEN
-      comp.password = comp.confirmPassword = 'myPassword';
+      comp.password = comp.confirmPassword = testPassword;
 
       // WHEN
       comp.changePassword();

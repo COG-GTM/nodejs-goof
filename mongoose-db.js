@@ -1,4 +1,5 @@
 var mongoose = require('mongoose');
+var crypto = require('crypto');
 var cfenv = require("cfenv");
 var Schema = mongoose.Schema;
 
@@ -46,10 +47,15 @@ mongoose.connect(mongoUri);
 
 User = mongoose.model('User');
 User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
+  if (err) {
+    console.log('error looking up admin user: ' + err.message);
+    return;
+  }
   console.log(users);
   if (users.length === 0) {
     console.log('no admin');
-    new User({ username: 'admin@snyk.io', password: 'SuperSecretPassword' }).save(function (err, user, count) {
+    var adminPassword = process.env.ADMIN_PASSWORD || crypto.randomBytes(24).toString('hex');
+    new User({ username: 'admin@snyk.io', password: adminPassword }).save(function (err, user, count) {
       if (err) {
         console.log('error saving admin user');
       }
