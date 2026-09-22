@@ -1,3 +1,4 @@
+var crypto = require('crypto');
 var mongoose = require('mongoose');
 var cfenv = require("cfenv");
 var Schema = mongoose.Schema;
@@ -18,7 +19,6 @@ mongoose.model('User', User);
 
 // CloudFoundry env vars
 var mongoCFUri = cfenv.getAppEnv().getServiceURL('goof-mongo');
-console.log(JSON.stringify(cfenv.getAppEnv()));
 
 // Default Mongo URI is local
 const DOCKER = process.env.DOCKER
@@ -40,19 +40,23 @@ if (mongoCFUri) {
   mongoUri = process.env.MONGODB_URI;
 }
 
-console.log("Using Mongo URI " + mongoUri);
+mongoose.connect(mongoUri).then(function () {
+  var UserModel = mongoose.model('User');
+  return UserModel.find({ username: 'admin@snyk.io' }).then(function (users) {
+    if (users.length > 0) {
+      return null;
+    }
 
-mongoose.connect(mongoUri);
+    // The seeded admin password is taken from the environment; a random one is
+    // generated when it is not provided so that no credential is committed.
+    var adminPassword = process.env.ADMIN_PASSWORD || crypto.randomBytes(24).toString('hex');
+    if (!process.env.ADMIN_PASSWORD) {
+      console.log('ADMIN_PASSWORD is not set, seeding the admin user with a random password');
+    }
 
-User = mongoose.model('User');
-User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
-  console.log(users);
-  if (users.length === 0) {
-    console.log('no admin');
-    new User({ username: 'admin@snyk.io', password: 'SuperSecretPassword' }).save(function (err, user, count) {
-      if (err) {
-        console.log('error saving admin user');
-      }
-    });
-  }
+    return new UserModel({ username: 'admin@snyk.io', password: adminPassword }).save();
+  });
+}).catch(function (err) {
+  console.log('error connecting to mongo or seeding the admin user');
+  console.error(err);
 });

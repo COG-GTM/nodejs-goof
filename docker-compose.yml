@@ -1,27 +1,38 @@
-version: "2"
 services:
   goof:
     build: .
     container_name: goof
     environment:
       - DOCKER=1
+      - SESSION_SECRET=${SESSION_SECRET:?set SESSION_SECRET in your environment or .env file}
+      - CSRF_SECRET=${CSRF_SECRET:?set CSRF_SECRET in your environment or .env file}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?set ADMIN_PASSWORD in your environment or .env file}
+      - MYSQL_HOST=goof-mysql
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in your environment or .env file}
     ports:
-      - "3001:3001"
-      - "9229:9229"
-    links:
-      - goof-mongo
+      - "127.0.0.1:3001:3001"
     depends_on:
       - goof-mongo
+      - goof-mysql
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
   goof-mongo:
     container_name: goof-mongo
-    image: mongo:3
+    image: mongo:8
     ports:
-      - "27017:27017"
-  good-mysql:
+      - "127.0.0.1:27017:27017"
+    security_opt:
+      - no-new-privileges:true
+  goof-mysql:
     container_name: goof-mysql
-    image: mysql:5
+    image: mysql:8
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in your environment or .env file}
       MYSQL_DATABASE: acme
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
+    security_opt:
+      - no-new-privileges:true

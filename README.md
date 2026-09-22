@@ -16,21 +16,35 @@ mongod &
 
 git clone https://github.com/snyk-labs/nodejs-goof
 npm install
-npm start
+SESSION_SECRET=<secret> CSRF_SECRET=<secret> ADMIN_PASSWORD=<password> npm start
 ```
-This will run Goof locally, using a local mongo on the default port and listening on port 3001 (http://localhost:3001)
+This will run Goof locally, using a local mongo on the default port and listening on port 3001 (https://localhost:3001)
 
-Note: You *have* to use an old version of MongoDB version due to some of these old libraries' database server APIs. MongoDB 3 is known to work ok.
+The server speaks HTTPS. Point `TLS_KEY_PATH` and `TLS_CERT_PATH` at a key/certificate pair, or leave them
+unset to have a throwaway self-signed certificate generated on start up (browsers and `curl` will warn about it).
+
+### Configuration
+
+No credential is baked into the source, so the following environment variables drive the app:
+
+| Variable | Purpose |
+| --- | --- |
+| `SESSION_SECRET` | Signing secret for the session cookie. A random one is generated when unset, which invalidates sessions on restart. |
+| `CSRF_SECRET` | Signing secret for CSRF tokens. A random one is generated when unset. |
+| `ADMIN_PASSWORD` | Password of the seeded `admin@snyk.io` user. A random one is generated when unset. |
+| `MONGODB_URI` / `MONGOLAB_URI` | Mongo connection string. Defaults to a local `express-todo` database. |
+| `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE` | MySQL connection used by `/users`. |
+| `TLS_KEY_PATH`, `TLS_CERT_PATH` | TLS material for the HTTPS server. |
 
 You can also run the MongoDB server individually via Docker, such as:
 
 ```sh
-docker run --rm -p 27017:27017 mongo:3
+docker run --rm -p 27017:27017 mongo:8
 ```
 
 ## Running with docker-compose
 ```bash
-docker-compose up --build
+SESSION_SECRET=<secret> CSRF_SECRET=<secret> ADMIN_PASSWORD=<password> MYSQL_ROOT_PASSWORD=<password> docker-compose up --build
 docker-compose down
 ```
 
@@ -50,8 +64,12 @@ npm run cleanup
 
 ## Exploiting the vulnerabilities
 
-This app uses npm dependencies holding known vulnerabilities,
-as well as insecure code that introduces code-level vulnerabilities.
+> **Note:** the findings reported by Snyk Open Source, Snyk Code and Snyk Container have been remediated in
+> this fork. The exploits below and the scripts in `exploits/` are kept as documentation of what used to be
+> possible and are expected to fail against the current code.
+
+This app used npm dependencies holding known vulnerabilities,
+as well as insecure code that introduced code-level vulnerabilities.
 
 The `exploits/` directory includes a series of steps to demonstrate each one.
 

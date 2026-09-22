@@ -1,4 +1,9 @@
-const assert = require('assert)')
+const assert = require('assert')
+const crypto = require('crypto')
+
+// Test credentials are generated per run so that no password is committed.
+const password = crypto.randomBytes(12).toString('hex')
+const otherPassword = crypto.randomBytes(12).toString('hex')
 
 describe('Component Tests', () => {
   describe('PasswordComponent', () => {
@@ -8,8 +13,8 @@ describe('Component Tests', () => {
 
     test('should show error if passwords do not match', () => {
       // GIVEN
-      comp.password = 'password1';
-      comp.confirmPassword = 'password2';
+      comp.password = password;
+      comp.confirmPassword = otherPassword;
       // WHEN
       comp.changePassword();
       // THEN
@@ -20,19 +25,18 @@ describe('Component Tests', () => {
 
     test('should call Auth.changePassword when passwords match', () => {
       // GIVEN
-      // deepcode ignore NoHardcodedPasswords/test: <please specify a reason of ignoring this>
-      comp.password = comp.confirmPassword = 'myPassword';
+      comp.password = comp.confirmPassword = password;
 
       // WHEN
       comp.changePassword();
 
       // THEN
-      assert(service.save).toHaveBeenCalledWith('myPassword');
+      assert(service.save).toHaveBeenCalledWith(password);
     });
 
     test('should set success to OK upon success', function() {
       // GIVEN
-      comp.password = comp.confirmPassword = 'myPassword';
+      comp.password = comp.confirmPassword = password;
 
       // WHEN
       comp.changePassword();
@@ -45,7 +49,7 @@ describe('Component Tests', () => {
 
     test('should notify of error if change password fails', function() {
       // GIVEN
-      comp.password = comp.confirmPassword = 'myPassword';
+      comp.password = comp.confirmPassword = password;
 
       // WHEN
       comp.changePassword();

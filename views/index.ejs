@@ -1,4 +1,3 @@
-<% layout( 'layout' ) -%>
 <style>
 strong {font-weight: bold}
 </style>
@@ -10,6 +9,7 @@ strong {font-weight: bold}
 
 <div id="list">
   <form action="/create" method="post" accept-charset="utf-8">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
     <div class="item-new">
       <input class="input" type="text" name="content" />
     </div>
@@ -17,8 +17,11 @@ strong {font-weight: bold}
 
 <% todos.forEach( function ( todo ){ %>
   <div class="item">
-    <a class="update-link" href="/edit/<%= todo._id %>" title="Update this todo item"><%- marked(new String(todo.content)) %></a>
-    <a class="del-btn" href="/destroy/<%= todo._id %>" title="Delete this todo item">Delete</a>
+    <a class="update-link" href="/edit/<%= todo._id %>" title="Update this todo item"><%- marked(String(todo.content)) %></a>
+    <form class="del-form" action="/destroy/<%= todo._id %>" method="post" accept-charset="utf-8">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <button class="del-btn" type="submit" title="Delete this todo item">Delete</button>
+    </form>
   </div>
 <% }); %>
 </div>
