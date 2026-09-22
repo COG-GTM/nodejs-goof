@@ -15,6 +15,7 @@ var validator = require('validator');
 var fileType = require('file-type');
 var AdmZip = require('adm-zip');
 var fs = require('fs');
+var path = require('path');
 
 // prototype-pollution
 var _ = require('lodash');
@@ -86,6 +87,16 @@ exports.get_account_details = function(req, res, next) {
  	return res.render('account.hbs', profile)
 }
 
+var VIEWS_DIR = path.resolve(__dirname, '..', 'views');
+
+function resolveLayout(layout) {
+  var resolved = path.resolve(VIEWS_DIR, path.basename(String(layout)));
+  if (resolved !== VIEWS_DIR && !resolved.startsWith(VIEWS_DIR + path.sep)) {
+    return null;
+  }
+  return resolved;
+}
+
 exports.save_account_details = function(req, res, next) {
   // get the profile details from the JSON
 	const profile = req.body
@@ -104,7 +115,23 @@ exports.save_account_details = function(req, res, next) {
     profile.lastname = validator.rtrim(profile.lastname)
 
     // render the view
-    return res.render('account.hbs', profile)
+    const view = {
+      email: profile.email,
+      phone: profile.phone,
+      firstname: profile.firstname,
+      lastname: profile.lastname,
+      country: profile.country
+    }
+
+    if (typeof profile.layout !== 'undefined') {
+      const layout = resolveLayout(profile.layout)
+      if (layout === null) {
+        return res.status(400).send('Invalid layout')
+      }
+      view.layout = layout
+    }
+
+    return res.render('account.hbs', view)
   } else {
     // if input validation fails, we just render the view as is
     console.log('error in form details')
