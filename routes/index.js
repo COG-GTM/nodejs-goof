@@ -51,17 +51,22 @@ exports.loginHandler = function (req, res, next) {
   }
 };
 
+const ALLOWED_REDIRECT_PATHS = ['/', '/admin', '/account_details', '/login']
+
+function safeRedirectPath(redirectPage) {
+  if (typeof redirectPage !== 'string') {
+    return '/admin'
+  }
+  return ALLOWED_REDIRECT_PATHS.indexOf(redirectPage) !== -1 ? redirectPage : '/admin'
+}
+
 function adminLoginSuccess(redirectPage, session, username, res) {
   session.loggedIn = 1
 
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (redirectPage) {
-      return res.redirect(redirectPage)
-  } else {
-      return res.redirect('/admin')
-  }
+  return res.redirect(safeRedirectPath(redirectPage))
 }
 
 exports.login = function (req, res, next) {
