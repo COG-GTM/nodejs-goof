@@ -15,9 +15,8 @@ var validator = require('validator');
 var fileType = require('file-type');
 var AdmZip = require('adm-zip');
 var fs = require('fs');
+var crypto = require('crypto');
 
-// prototype-pollution
-var _ = require('lodash');
 
 exports.index = function (req, res, next) {
   Todo.
@@ -310,20 +309,52 @@ exports.about_new = function (req, res, next) {
 ///////////////////////////////////////////////////////////////////////////////
 // In order of simplicity we are not using any database. But you can write the
 // same logic using MongoDB.
+// Chat credentials come from the environment; a random password is generated
+// when none is configured so no usable credential lives in the source tree.
 const users = [
-  // You know password for the user.
-  { name: 'user', password: 'pwd' },
-  // You don't know password for the admin.
-  { name: 'admin', password: Math.random().toString(32), canDelete: true },
+  {
+    name: process.env.CHAT_USER_NAME || 'user',
+    password: process.env.CHAT_USER_PASSWORD || crypto.randomBytes(24).toString('hex'),
+  },
+  {
+    name: process.env.CHAT_ADMIN_NAME || 'admin',
+    password: process.env.CHAT_ADMIN_PASSWORD || crypto.randomBytes(24).toString('hex'),
+    canDelete: true,
+  },
 ];
 
 let messages = [];
 let lastId = 1;
 
 function findUser(auth) {
+  if (typeof auth.name !== 'string' || typeof auth.password !== 'string') {
+    return undefined;
+  }
+
   return users.find((u) =>
     u.name === auth.name &&
-    u.password === auth.password);
+    Buffer.byteLength(u.password) === Buffer.byteLength(auth.password) &&
+    crypto.timingSafeEqual(Buffer.from(u.password), Buffer.from(auth.password)));
+}
+
+// Only these message fields may be supplied by the client, and only as strings.
+const MESSAGE_FIELDS = ['text', 'icon'];
+
+function pickMessageFields(input) {
+  const picked = {};
+
+  if (input === null || typeof input !== 'object') {
+    return picked;
+  }
+
+  MESSAGE_FIELDS.forEach((field) => {
+    if (Object.prototype.hasOwnProperty.call(input, field) &&
+      typeof input[field] === 'string') {
+      picked[field] = input[field];
+    }
+  });
+
+  return picked;
 }
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -339,16 +370,17 @@ exports.chat = {
       return;
     }
 
-    const message = {
-      // Default message icon. Cen be overwritten by user.
-      icon: '👋',
-    };
-
-    _.merge(message, req.body.message, {
-      id: lastId++,
-      timestamp: Date.now(),
-      userName: user.name,
-    });
+    const message = Object.assign(
+      {
+        // Default message icon. Cen be overwritten by user.
+        icon: '👋',
+      },
+      pickMessageFields(req.body.message),
+      {
+        id: lastId++,
+        timestamp: Date.now(),
+        userName: user.name,
+      });
 
     messages.push(message);
     res.send({ ok: true });
@@ -356,7 +388,8 @@ exports.chat = {
   delete(req, res) {
     const user = findUser(req.body.auth || {});
 
-    if (!user || !user.canDelete) {
+    if (!user || !Object.prototype.hasOwnProperty.call(user, 'canDelete') ||
+      user.canDelete !== true) {
       res.status(403).send({ ok: false, error: 'Access denied' });
       return;
     }
