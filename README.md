@@ -20,6 +20,16 @@ npm start
 ```
 This will run Goof locally, using a local mongo on the default port and listening on port 3001 (http://localhost:3001)
 
+The `/chat` demo accounts are configured through the environment; when unset, a
+random password is generated at startup and the accounts are unusable:
+
+```bash
+export CHAT_USER_NAME=user CHAT_USER_PASSWORD=<pick-one>
+export CHAT_ADMIN_NAME=admin CHAT_ADMIN_PASSWORD=<pick-one>
+```
+
+`exploits/prototype-pollution.sh` reads the same variables.
+
 Note: You *have* to use an old version of MongoDB version due to some of these old libraries' database server APIs. MongoDB 3 is known to work ok.
 
 You can also run the MongoDB server individually via Docker, such as:
