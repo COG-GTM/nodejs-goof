@@ -19,6 +19,14 @@ var fs = require('fs');
 // prototype-pollution
 var _ = require('lodash');
 
+// Only allow same-origin, path-only redirect targets (no scheme, host or backslashes)
+function sanitizeRedirectPage (redirectPage) {
+  if (typeof redirectPage !== 'string') return null;
+  return /^\/[A-Za-z0-9\-._~!$&'()*+,;=:@%\/?]*$/.test(redirectPage) && !redirectPage.startsWith('//')
+    ? redirectPage
+    : null;
+}
+
 exports.index = function (req, res, next) {
   Todo.
     find({}).
@@ -38,7 +46,7 @@ exports.loginHandler = function (req, res, next) {
   if (validator.isEmail(req.body.username)) {
     User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
       if (users.length > 0) {
-        const redirectPage = req.body.redirectPage
+        const redirectPage = sanitizeRedirectPage(req.body.redirectPage)
         const session = req.session
         const username = req.body.username
         return adminLoginSuccess(redirectPage, session, username, res)
@@ -68,7 +76,7 @@ exports.login = function (req, res, next) {
   return res.render('admin', {
     title: 'Admin Access',
     granted: false,
-    redirectPage: req.query.redirectPage
+    redirectPage: sanitizeRedirectPage(req.query.redirectPage) || ''
   });
 };
 
@@ -76,6 +84,7 @@ exports.admin = function (req, res, next) {
   return res.render('admin', {
     title: 'Admin Access Granted',
     granted: true,
+    redirectPage: '',
   });
 };
 
