@@ -19,6 +19,7 @@
             action='/import' 
             method='post' 
             encType="multipart/form-data">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                 <input type="file" name="importFile" />
                 <input type='submit' value='Import!' />
         </form>		

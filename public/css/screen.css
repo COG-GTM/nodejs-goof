@@ -97,6 +97,16 @@ body {
   height: 21px;
 }
 
+.del-form {
+  display: inline;
+}
+
+button.del-btn, button.del-btn-edit {
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
 /* line 32, ../sass/screen.sass */
 #list {
   padding: 2rem 0 0 0;
