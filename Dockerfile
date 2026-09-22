@@ -1,8 +1,10 @@
 # FROM node:6-stretch
-FROM node:18.13.0
+FROM node:18.20.8-alpine3.21
 
-RUN mkdir /usr/src/goof
-RUN mkdir /tmp/extracted_files
+RUN apk upgrade --no-cache
+
+RUN mkdir -p /usr/src/goof
+RUN mkdir -p /tmp/extracted_files
 COPY . /usr/src/goof
 WORKDIR /usr/src/goof
 
