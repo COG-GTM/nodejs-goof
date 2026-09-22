@@ -17,6 +17,17 @@ module.exports = {
     return str;
   },
 
+  // Allow-list a user supplied redirect target: only same-site, relative
+  // paths made of unreserved URL characters. Anything else yields ''.
+  safe_redirect_path : function ( value ){
+    if( typeof value !== 'string' ) return '';
+    if( !/^\/[A-Za-z0-9\-._~%/?&=+:@,;!$'()*]*$/.test( value )) return '';
+    if( value.startsWith( '//' )) return '';
+    if( value.split( '/' ).indexOf( '..' ) !== -1 ) return '';
+
+    return value;
+  },
+
   forbidden : function ( res ){
     var body       = 'Forbidden';
     res.statusCode = 403;
