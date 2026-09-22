@@ -339,16 +339,35 @@ exports.chat = {
       return;
     }
 
+    const input = req.body.message;
+
+    if (input !== undefined && (typeof input !== 'object' || input === null || Array.isArray(input))) {
+      res.status(400).send({ ok: false, error: 'Invalid message' });
+      return;
+    }
+
     const message = {
       // Default message icon. Cen be overwritten by user.
       icon: '👋',
+      text: '',
     };
 
-    _.merge(message, req.body.message, {
-      id: lastId++,
-      timestamp: Date.now(),
-      userName: user.name,
-    });
+    // Only copy the fields a message is allowed to carry, so that keys such as
+    // __proto__ or constructor cannot reach Object.prototype.
+    for (const field of ['icon', 'text']) {
+      if (input && Object.prototype.hasOwnProperty.call(input, field)) {
+        const value = input[field];
+        if (typeof value !== 'string') {
+          res.status(400).send({ ok: false, error: `Invalid message ${field}` });
+          return;
+        }
+        message[field] = value;
+      }
+    }
+
+    message.id = lastId++;
+    message.timestamp = Date.now();
+    message.userName = user.name;
 
     messages.push(message);
     res.send({ ok: true });
@@ -356,7 +375,7 @@ exports.chat = {
   delete(req, res) {
     const user = findUser(req.body.auth || {});
 
-    if (!user || !user.canDelete) {
+    if (!user || Object.prototype.hasOwnProperty.call(user, 'canDelete') !== true || user.canDelete !== true) {
       res.status(403).send({ ok: false, error: 'Access denied' });
       return;
     }
