@@ -5,6 +5,9 @@ services:
     container_name: goof
     environment:
       - DOCKER=1
+      # Optional: provision the admin account with your own password.
+      # When unset, a random one-time password is printed to the container log.
+      - ADMIN_PASSWORD
     ports:
       - "3001:3001"
       - "9229:9229"

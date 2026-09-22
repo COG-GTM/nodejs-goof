@@ -53,6 +53,8 @@ app.use(routes.current_user);
 app.get('/', routes.index);
 app.get('/login', routes.login);
 app.post('/login', routes.loginHandler);
+app.get('/change_password', routes.change_password_form);
+app.post('/change_password', routes.change_password);
 app.get('/admin', routes.isLoggedIn, routes.admin);
 app.get('/account_details', routes.isLoggedIn, routes.get_account_details);
 app.post('/account_details', routes.isLoggedIn, routes.save_account_details);

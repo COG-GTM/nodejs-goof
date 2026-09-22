@@ -20,6 +20,19 @@ npm start
 ```
 This will run Goof locally, using a local mongo on the default port and listening on port 3001 (http://localhost:3001)
 
+### Admin credentials
+
+On first boot Goof provisions a single admin account. Its username defaults to `admin@snyk.io` and can be
+overridden with `ADMIN_USERNAME`. The password comes from the `ADMIN_PASSWORD` environment variable:
+
+```bash
+ADMIN_PASSWORD='<a password you pick>' npm start
+```
+
+If `ADMIN_PASSWORD` is not set, a random one-time password is generated at provisioning time and printed
+once to the server log. Logging in with it forces a password change before `/admin` becomes reachable.
+Only a salted scrypt hash of the password is ever stored, and no credentials are committed to this repo.
+
 Note: You *have* to use an old version of MongoDB version due to some of these old libraries' database server APIs. MongoDB 3 is known to work ok.
 
 You can also run the MongoDB server individually via Docker, such as:
@@ -85,7 +98,7 @@ The form is completely functional. The way it works is, it receives the profile 
 You'd think that what's the worst that can happen because we use a validation to confirm the expected input, however the validation doesn't take into account a new field that can be added to the object, such as `layout`, which when passed to a template language, could lead to Local File Inclusion (Path Traversal) vulnerabilities. Here is a proof-of-concept showing it:
 
 ```sh
-curl -X 'POST' --cookie c.txt --cookie-jar c.txt -H 'Content-Type: application/json' --data-binary '{"username": "admin@snyk.io", "password": "SuperSecretPassword"}' 'http://localhost:3001/login'
+curl -X 'POST' --cookie c.txt --cookie-jar c.txt -H 'Content-Type: application/json' --data-binary "{\"username\": \"admin@snyk.io\", \"password\": \"$ADMIN_PASSWORD\"}" 'http://localhost:3001/login'
 ```
 
 ```sh
@@ -107,28 +120,29 @@ curl -X 'POST' -H 'Content-Type: application/json' --data-binary "{\"email\": \"
 
 #### NoSQL injection
 
-A POST request to `/login` will allow for authentication and signing-in to the system as an administrator user.
-It works by exposing `loginHandler` as a controller in `routes/index.js` and uses a MongoDB database and the `User.find()` query to look up the user's details (email as a username and password). One issue is that it indeed stores passwords in plaintext and not hashing them. However, there are other issues in play here.
-
+A POST request to `/login` authenticates and signs in to the system as an administrator user.
+It works by exposing `loginHandler` as a controller in `routes/index.js` and uses a MongoDB database and the `User.findOne()` query to look up the user by email.
 
 We can send a request with an incorrect password to see that we get a failed attempt
 ```sh
 echo '{"username":"admin@snyk.io", "password":"WrongPassword"}' | http --json $GOOF_HOST/login -v
 ```
 
-And another request, as denoted with the following JSON request to sign-in as the admin user works as expected:
+And another request, with the password the admin account was provisioned with, signs in as expected:
 ```sh
-echo '{"username":"admin@snyk.io", "password":"SuperSecretPassword"}' | http --json $GOOF_HOST/login -v
+echo "{\"username\":\"admin@snyk.io\", \"password\":\"$ADMIN_PASSWORD\"}" | http --json $GOOF_HOST/login -v
 ```
 
-However, what if the password wasn't a string? what if it was an object? Why would an object be harmful or even considered an issue?
-Consider the following request:
+This handler used to look the user up with `User.find({ username, password })`, matching the plaintext
+password inside the query itself. That meant a non-string password had a meaning of its own to MongoDB:
 ```sh
 echo '{"username": "admin@snyk.io", "password": {"$gt": ""}}' | http --json $GOOF_HOST/login -v
 ```
 
-We know the username, and we pass on what seems to be an object of some sort.
-That object structure is passed as-is to the `password` property and has a specific meaning to MongoDB - it uses the `$gt` operation which stands for `greater than`. So, we in essence tell MongoDB to match that username with any record that has a password that is greater than `empty string` which is bound to hit a record. This introduces the NoSQL Injection vector.
+The `$gt` operator stands for `greater than`, so the query matched any record whose password is greater
+than the empty string - signing in without knowing the password at all. The handler now rejects non-string
+credentials, looks the account up by username only, and verifies the submitted password against a stored
+scrypt hash, so neither the operator payload above nor a password read out of this repository authenticates.
 
 #### Open redirect
 

@@ -19,6 +19,8 @@ var fs = require('fs');
 // prototype-pollution
 var _ = require('lodash');
 
+const MIN_PASSWORD_LENGTH = 12;
+
 exports.index = function (req, res, next) {
   Todo.
     find({}).
@@ -35,33 +37,94 @@ exports.index = function (req, res, next) {
 };
 
 exports.loginHandler = function (req, res, next) {
-  if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
-      if (users.length > 0) {
-        const redirectPage = req.body.redirectPage
-        const session = req.session
-        const username = req.body.username
-        return adminLoginSuccess(redirectPage, session, username, res)
-      } else {
-        return res.status(401).send()
-      }
-    });
-  } else {
+  const username = req.body.username
+  const password = req.body.password
+
+  if (typeof username !== 'string' || typeof password !== 'string' || !validator.isEmail(username)) {
     return res.status(401).send()
   }
+
+  User.findOne({ username: username }, function (err, user) {
+    if (err) return next(err);
+
+    if (!user || !utils.verify_password(password, user.passwordHash)) {
+      return res.status(401).send()
+    }
+
+    return adminLoginSuccess(req.body.redirectPage, req.session, user, res)
+  });
 };
 
-function adminLoginSuccess(redirectPage, session, username, res) {
+function adminLoginSuccess(redirectPage, session, user, res) {
   session.loggedIn = 1
+  session.username = user.username
+  session.mustChangePassword = user.mustChangePassword ? 1 : 0
 
   // Log the login action for audit
-  console.log(`User logged in: ${username}`)
+  console.log(`User logged in: ${user.username}`)
 
-  if (redirectPage) {
+  if (session.mustChangePassword === 1) {
+      return res.redirect('/change_password')
+  } else if (redirectPage) {
       return res.redirect(redirectPage)
   } else {
       return res.redirect('/admin')
   }
+}
+
+exports.change_password_form = function (req, res, next) {
+  if (req.session.loggedIn !== 1) {
+    return res.redirect('/')
+  }
+
+  return res.render('change_password', {
+    title: 'Change Password',
+    error: null
+  });
+}
+
+exports.change_password = function (req, res, next) {
+  if (req.session.loggedIn !== 1) {
+    return res.redirect('/')
+  }
+
+  const currentPassword = req.body.currentPassword
+  const newPassword = req.body.newPassword
+
+  if (typeof currentPassword !== 'string' || typeof newPassword !== 'string' || newPassword.length < MIN_PASSWORD_LENGTH) {
+    return res.status(400).render('change_password', {
+      title: 'Change Password',
+      error: `The new password must be at least ${MIN_PASSWORD_LENGTH} characters long.`
+    })
+  }
+
+  if (newPassword === currentPassword) {
+    return res.status(400).render('change_password', {
+      title: 'Change Password',
+      error: 'The new password must be different from the current one.'
+    })
+  }
+
+  User.findOne({ username: req.session.username }, function (err, user) {
+    if (err) return next(err);
+
+    if (!user || !utils.verify_password(currentPassword, user.passwordHash)) {
+      return res.status(401).render('change_password', {
+        title: 'Change Password',
+        error: 'The current password is incorrect.'
+      })
+    }
+
+    user.passwordHash = utils.hash_password(newPassword)
+    user.mustChangePassword = false
+
+    user.save(function (err) {
+      if (err) return next(err);
+
+      req.session.mustChangePassword = 0
+      return res.redirect('/admin')
+    })
+  });
 }
 
 exports.login = function (req, res, next) {
@@ -113,10 +176,12 @@ exports.save_account_details = function(req, res, next) {
 }
 
 exports.isLoggedIn = function (req, res, next) {
-  if (req.session.loggedIn === 1) {
-    return next()
-  } else {
+  if (req.session.loggedIn !== 1) {
     return res.redirect('/')
+  } else if (req.session.mustChangePassword === 1) {
+    return res.redirect('/change_password')
+  } else {
+    return next()
   }
 }
 
