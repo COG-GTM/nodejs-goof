@@ -15,6 +15,8 @@ var validator = require('validator');
 var fileType = require('file-type');
 var AdmZip = require('adm-zip');
 var fs = require('fs');
+var path = require('path');
+var os = require('os');
 
 // prototype-pollution
 var _ = require('lodash');
@@ -238,6 +240,67 @@ function isBlank(str) {
   return (!str || /^\s*$/.test(str));
 }
 
+function assertRelativeEntryName(entryName) {
+  if (isBlank(entryName) || entryName.indexOf('\0') !== -1) {
+    throw new Error('illegal archive entry name');
+  }
+  if (path.isAbsolute(entryName) || /^[\\/]/.test(entryName) || /^[a-zA-Z]:/.test(entryName)) {
+    throw new Error('absolute archive entry name');
+  }
+  entryName.split(/[\\/]+/).forEach(function (segment) {
+    if (segment === '..') {
+      throw new Error('traversal in archive entry name');
+    }
+  });
+}
+
+function assertWithin(root, target) {
+  if (target !== root && target.indexOf(root + path.sep) !== 0) {
+    throw new Error('archive entry escapes the extraction directory');
+  }
+}
+
+// mkdir -p, re-checking after every level that the directory really lives
+// inside root: a pre-existing symlinked component would otherwise let an
+// entry land outside of it.
+function makeDirWithin(root, dir) {
+  assertWithin(root, dir);
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  assertWithin(root, fs.realpathSync(dir));
+}
+
+// adm-zip 0.4.7 extractAllTo() resolves entry names against the target
+// directory without validating them (Zip Slip, CVE-2018-1002204), so entries
+// are unpacked one by one and confined to root instead.
+function safeExtractAll(zip, root) {
+  var canonicalRoot = fs.realpathSync(root);
+
+  zip.getEntries().forEach(function (entry) {
+    var entryName = entry.entryName.toString();
+    assertRelativeEntryName(entryName);
+
+    var destination = path.resolve(canonicalRoot, entryName);
+    assertWithin(canonicalRoot, destination);
+
+    if (entry.isDirectory) {
+      makeDirWithin(canonicalRoot, destination);
+      return;
+    }
+
+    var content = entry.getData();
+    if (!content) {
+      throw new Error('unable to read archive entry');
+    }
+
+    makeDirWithin(canonicalRoot, path.dirname(destination));
+    var existing = fs.lstatSync(destination, { throwIfNoEntry: false });
+    if (existing && !existing.isFile()) {
+      fs.unlinkSync(destination);
+    }
+    fs.writeFileSync(destination, content, { mode: 0o600 });
+  });
+}
+
 exports.import = function (req, res, next) {
   if (!req.files) {
     res.send('No files were uploaded.');
@@ -253,10 +316,16 @@ exports.import = function (req, res, next) {
   }
   if (importedFileType["mime"] === zipFileExt["mime"]) {
     var zip = AdmZip(importFile.data);
-    var extracted_path = "/tmp/extracted_files";
-    zip.extractAllTo(extracted_path, true);
+    var extracted_path = fs.mkdtempSync(path.join(os.tmpdir(), 'extracted_files-'));
+    try {
+      safeExtractAll(zip, extracted_path);
+    } catch (err) {
+      console.error('rejected archive: ' + err.message);
+      res.status(400).send('Invalid archive');
+      return;
+    }
     data = "No backup.txt file found";
-    fs.readFile('backup.txt', 'ascii', function (err, data) {
+    fs.readFile(path.join(extracted_path, 'backup.txt'), 'ascii', function (err, data) {
       if (!err) {
         data = data;
       }
