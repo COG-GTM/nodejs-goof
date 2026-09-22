@@ -128,7 +128,9 @@ echo '{"username": "admin@snyk.io", "password": {"$gt": ""}}' | http --json $GOO
 ```
 
 We know the username, and we pass on what seems to be an object of some sort.
-That object structure is passed as-is to the `password` property and has a specific meaning to MongoDB - it uses the `$gt` operation which stands for `greater than`. So, we in essence tell MongoDB to match that username with any record that has a password that is greater than `empty string` which is bound to hit a record. This introduces the NoSQL Injection vector.
+That object structure would be passed as-is to the `password` property and has a specific meaning to MongoDB - it uses the `$gt` operation which stands for `greater than`. So, we would in essence tell MongoDB to match that username with any record that has a password that is greater than `empty string` which is bound to hit a record. This is the NoSQL Injection vector.
+
+`loginHandler` now rejects any credential that is not a primitive string and wraps both values in an explicit `$eq` comparison, so the request above returns `401` instead of an admin session.
 
 #### Open redirect
 
