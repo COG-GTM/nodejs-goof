@@ -48,6 +48,9 @@
     "typeorm": "^0.2.24",
     "validator": "^13.5.2"
   },
+  "overrides": {
+    "handlebars": "4.7.9"
+  },
   "devDependencies": {
     "browserify": "^13.1.1",
     "nodemon": "^2.0.7",
