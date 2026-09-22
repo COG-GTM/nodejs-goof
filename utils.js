@@ -17,6 +17,17 @@ module.exports = {
     return str;
   },
 
+  // Returns the value only when it is a safe same-origin relative path,
+  // otherwise an empty string.
+  safe_redirect_path : function ( value ){
+    if( typeof value !== 'string' ) return '';
+    if( value === '/' ) return value;
+    if( !/^\/[^/\\]/.test( value )) return '';
+    if( /[\s\x00-\x1f\x7f]/.test( value )) return '';
+
+    return value;
+  },
+
   forbidden : function ( res ){
     var body       = 'Forbidden';
     res.statusCode = 403;
