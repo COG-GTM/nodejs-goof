@@ -1,4 +1,5 @@
 var utils = require('../utils');
+var telemetry = require('../telemetry');
 var mongoose = require('mongoose');
 var Todo = mongoose.model('Todo');
 var User = mongoose.model('User');
@@ -325,6 +326,17 @@ function findUser(auth) {
     u.name === auth.name &&
     u.password === auth.password);
 }
+
+function recordChatAccessDenied(op, auth, reason) {
+  const userNameAttempted = typeof auth.name === 'string' ? auth.name : null;
+  const total = telemetry.increment('chat_authz_denied_total', { op });
+  telemetry.logEvent('chat.access_denied', {
+    op,
+    reason,
+    userNameAttempted,
+    deniedTotal: total,
+  });
+}
 ///////////////////////////////////////////////////////////////////////////////
 
 exports.chat = {
@@ -332,9 +344,11 @@ exports.chat = {
     res.send(messages);
   },
   add(req, res) {
-    const user = findUser(req.body.auth || {});
+    const auth = req.body.auth || {};
+    const user = findUser(auth);
 
     if (!user) {
+      recordChatAccessDenied('add', auth, 'unknown_user');
       res.status(403).send({ ok: false, error: 'Access denied' });
       return;
     }
@@ -354,9 +368,11 @@ exports.chat = {
     res.send({ ok: true });
   },
   delete(req, res) {
-    const user = findUser(req.body.auth || {});
+    const auth = req.body.auth || {};
+    const user = findUser(auth);
 
     if (!user || !user.canDelete) {
+      recordChatAccessDenied('delete', auth, user ? 'missing_delete_permission' : 'unknown_user');
       res.status(403).send({ ok: false, error: 'Access denied' });
       return;
     }
