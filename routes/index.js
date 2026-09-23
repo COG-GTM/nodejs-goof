@@ -10,6 +10,7 @@ var readline = require('readline');
 var moment = require('moment');
 var exec = require('child_process').exec;
 var validator = require('validator');
+var telemetry = require('../telemetry');
 
 // zip-slip
 var fileType = require('file-type');
@@ -34,28 +35,55 @@ exports.index = function (req, res, next) {
     });
 };
 
+function loginFailed(req, res, reason) {
+  const attemptedUsername = typeof req.body.username === 'string' ? req.body.username : null
+  telemetry.emit('user.login.failed', {
+    outcome: 'failure',
+    reason: reason,
+    attempted_username: attemptedUsername,
+    source_ip: telemetry.sourceIp(req),
+    failure_count: telemetry.increment('user.login.failed', { reason: reason })
+  })
+  return res.status(401).send()
+}
+
 exports.loginHandler = function (req, res, next) {
   if (validator.isEmail(req.body.username)) {
     User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
+      if (err) {
+        telemetry.emit('user.login.error', {
+          outcome: 'error',
+          source_ip: telemetry.sourceIp(req),
+          error: err.message,
+          error_count: telemetry.increment('user.login.error')
+        })
+        return next(err)
+      }
       if (users.length > 0) {
         const redirectPage = req.body.redirectPage
         const session = req.session
         const username = req.body.username
-        return adminLoginSuccess(redirectPage, session, username, res)
+        return adminLoginSuccess(redirectPage, session, username, res, req)
       } else {
-        return res.status(401).send()
+        return loginFailed(req, res, 'bad_credentials')
       }
     });
   } else {
-    return res.status(401).send()
+    return loginFailed(req, res, 'invalid_email')
   }
 };
 
-function adminLoginSuccess(redirectPage, session, username, res) {
+function adminLoginSuccess(redirectPage, session, username, res, req) {
   session.loggedIn = 1
 
   // Log the login action for audit
-  console.log(`User logged in: ${username}`)
+  telemetry.emit('user.login.succeeded', {
+    outcome: 'success',
+    username: username,
+    session_id: req && req.sessionID,
+    source_ip: telemetry.sourceIp(req),
+    success_count: telemetry.increment('user.login.succeeded')
+  })
 
   if (redirectPage) {
       return res.redirect(redirectPage)
