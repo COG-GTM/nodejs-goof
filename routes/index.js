@@ -1,4 +1,5 @@
 var utils = require('../utils');
+var telemetry = require('../telemetry');
 var mongoose = require('mongoose');
 var Todo = mongoose.model('Todo');
 var User = mongoose.model('User');
@@ -159,9 +160,10 @@ exports.create = function (req, res, next) {
     console.log('found img: ' + url);
 
     exec('identify ' + url, function (err, stdout, stderr) {
-      console.log(err);
       if (err !== null) {
-        console.log('Error (' + err + '):' + stderr);
+        telemetry.failure('todo.image_identify', err, { stderr: stderr });
+      } else {
+        telemetry.success('todo.image_identify');
       }
     });
 
@@ -173,7 +175,12 @@ exports.create = function (req, res, next) {
     content: item,
     updated_at: Date.now(),
   }).save(function (err, todo, count) {
-    if (err) return next(err);
+    if (err) {
+      telemetry.failure('todo.created', err);
+      return next(err);
+    }
+
+    telemetry.success('todo.created', { todo_id: String(todo._id) });
 
     /*
     res.setHeader('Data', todo.content.toString('base64'));
@@ -188,14 +195,32 @@ exports.create = function (req, res, next) {
 };
 
 exports.destroy = function (req, res, next) {
-  Todo.findById(req.params.id, function (err, todo) {
+  var todoId = req.params.id;
+
+  Todo.findById(todoId, function (err, todo) {
+    if (err) {
+      telemetry.failure('todo.deleted', err, { todo_id: todoId });
+      return next(err);
+    }
+
+    if (!todo) {
+      telemetry.failure('todo.deleted', new Error('todo not found'), { todo_id: todoId });
+      return res.status(404).send('Not found');
+    }
 
     try {
       todo.remove(function (err, todo) {
-        if (err) return next(err);
+        if (err) {
+          telemetry.failure('todo.deleted', err, { todo_id: todoId });
+          return next(err);
+        }
+
+        telemetry.success('todo.deleted', { todo_id: todoId });
         res.redirect('/');
       });
     } catch (e) {
+      telemetry.failure('todo.deleted', e, { todo_id: todoId });
+      next(e);
     }
   });
 };
@@ -216,13 +241,28 @@ exports.edit = function (req, res, next) {
 };
 
 exports.update = function (req, res, next) {
-  Todo.findById(req.params.id, function (err, todo) {
+  var todoId = req.params.id;
+
+  Todo.findById(todoId, function (err, todo) {
+    if (err) {
+      telemetry.failure('todo.updated', err, { todo_id: todoId });
+      return next(err);
+    }
+
+    if (!todo) {
+      telemetry.failure('todo.updated', new Error('todo not found'), { todo_id: todoId });
+      return res.status(404).send('Not found');
+    }
 
     todo.content = req.body.content;
     todo.updated_at = Date.now();
     todo.save(function (err, todo, count) {
-      if (err) return next(err);
+      if (err) {
+        telemetry.failure('todo.updated', err, { todo_id: todoId });
+        return next(err);
+      }
 
+      telemetry.success('todo.updated', { todo_id: todoId });
       res.redirect('/');
     });
   });
@@ -240,6 +280,11 @@ function isBlank(str) {
 
 exports.import = function (req, res, next) {
   if (!req.files) {
+    telemetry.failure('todo.import.completed', new Error('no files were uploaded'), {
+      records_attempted: 0,
+      records_saved: 0,
+      records_failed: 0,
+    });
     res.send('No files were uploaded.');
     return;
   }
@@ -254,7 +299,17 @@ exports.import = function (req, res, next) {
   if (importedFileType["mime"] === zipFileExt["mime"]) {
     var zip = AdmZip(importFile.data);
     var extracted_path = "/tmp/extracted_files";
-    zip.extractAllTo(extracted_path, true);
+    try {
+      zip.extractAllTo(extracted_path, true);
+    } catch (e) {
+      telemetry.failure('todo.import.completed', e, {
+        records_attempted: 0,
+        records_saved: 0,
+        records_failed: 0,
+        file_type: importedFileType["mime"],
+      });
+      return next(e);
+    }
     data = "No backup.txt file found";
     fs.readFile('backup.txt', 'ascii', function (err, data) {
       if (!err) {
@@ -265,34 +320,74 @@ exports.import = function (req, res, next) {
     data = importFile.data.toString('ascii');
   }
   var lines = data.split('\n');
+  var attempted = 0;
+  var saved = 0;
+  var failed = 0;
+  var settled = 0;
+  var firstError = null;
+  var responded = false;
+
+  function finish() {
+    if (responded) return;
+    responded = true;
+
+    var outcome = failed === 0 ? 'success' : 'failure';
+    telemetry.record('todo.import.completed', outcome, {
+      records_attempted: attempted,
+      records_saved: saved,
+      records_failed: failed,
+      file_type: importedFileType["mime"],
+      error: firstError || undefined,
+    });
+
+    if (firstError) return next(firstError);
+    res.redirect('/');
+  }
+
+  function onSaved(err, todo) {
+    settled++;
+    if (err) {
+      failed++;
+      firstError = firstError || err;
+      telemetry.failure('todo.import.record', err);
+    } else {
+      saved++;
+      telemetry.success('todo.import.record', { todo_id: String(todo._id) });
+    }
+    if (settled === attempted) finish();
+  }
+
+  var items = [];
   lines.forEach(function (line) {
     var parts = line.split(',');
     var what = parts[0];
-    console.log('importing ' + what);
     var when = parts[1];
     var locale = parts[2];
     var format = parts[3];
     var item = what;
     if (!isBlank(what)) {
       if (!isBlank(when) && !isBlank(locale) && !isBlank(format)) {
-        console.log('setting locale ' + parts[1]);
         moment.locale(locale);
         var d = moment(when);
-        console.log('formatting ' + d);
         item += ' [' + d.format(format) + ']';
       }
 
-      new Todo({
-        content: item,
-        updated_at: Date.now(),
-      }).save(function (err, todo, count) {
-        if (err) return next(err);
-        console.log('added ' + todo);
-      });
+      items.push(item);
     }
   });
 
-  res.redirect('/');
+  attempted = items.length;
+  if (attempted === 0) {
+    finish();
+    return;
+  }
+
+  items.forEach(function (item) {
+    new Todo({
+      content: item,
+      updated_at: Date.now(),
+    }).save(onSaved);
+  });
 };
 
 exports.about_new = function (req, res, next) {
