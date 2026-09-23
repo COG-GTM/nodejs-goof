@@ -34,12 +34,23 @@ router.post('/', async (req, res, next) => {
     user.role = req.body.role
 
     const savedRecord = await repo.save(user)
-    console.log("Post has been saved: ", savedRecord)
+    console.log(JSON.stringify({
+      event: 'user_created',
+      level: 'info',
+      route: 'POST /users',
+      userId: savedRecord && savedRecord.id
+    }))
     return res.sendStatus(200)
 
   } catch (err) {
-    console.error(err)
-    console.log({}.where)
-    next();
+    console.error(JSON.stringify({
+      event: 'user_create_failed',
+      level: 'error',
+      route: 'POST /users',
+      errorName: err && err.name,
+      errorCode: err && err.code,
+      message: err && err.message
+    }))
+    next(err)
   }
 })
