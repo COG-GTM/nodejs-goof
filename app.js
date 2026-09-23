@@ -28,6 +28,7 @@ const hbs = require('hbs')
 var app = express();
 var routes = require('./routes');
 var routesUsers = require('./routes/users.js')
+var telemetry = require('./service/telemetry');
 
 // all environments
 app.set('port', process.env.PORT || 3001);
@@ -57,6 +58,7 @@ app.get('/admin', routes.isLoggedIn, routes.admin);
 app.get('/account_details', routes.isLoggedIn, routes.get_account_details);
 app.post('/account_details', routes.isLoggedIn, routes.save_account_details);
 app.get('/logout', routes.logout);
+app.get('/metrics', telemetry.metricsHandler);
 app.post('/create', routes.create);
 app.get('/destroy/:id', routes.destroy);
 app.get('/edit/:id', routes.edit);
