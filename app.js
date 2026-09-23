@@ -24,6 +24,7 @@ var dust = require('dustjs-linkedin');
 var dustHelpers = require('dustjs-helpers');
 var cons = require('consolidate');
 const hbs = require('hbs')
+var errorTracking = require('./error-tracking');
 
 var app = express();
 var routes = require('./routes');
@@ -74,6 +75,9 @@ app.use(st({ path: './public', url: '/public' }));
 // Add the option to output (sanitized!) markdown
 marked.setOptions({ sanitize: true });
 app.locals.marked = marked;
+
+// Error tracking (all environments)
+app.use(errorTracking.errorTracker);
 
 // development only
 if (app.get('env') == 'development') {
