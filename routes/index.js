@@ -10,6 +10,7 @@ var readline = require('readline');
 var moment = require('moment');
 var exec = require('child_process').exec;
 var validator = require('validator');
+var telemetry = require('../service/telemetry');
 
 // zip-slip
 var fileType = require('file-type');
@@ -37,25 +38,30 @@ exports.index = function (req, res, next) {
 exports.loginHandler = function (req, res, next) {
   if (validator.isEmail(req.body.username)) {
     User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
+      if (err) {
+        telemetry.loginFailed(req, 'lookup_error', req.body.username)
+        return next(err)
+      }
       if (users.length > 0) {
         const redirectPage = req.body.redirectPage
         const session = req.session
         const username = req.body.username
-        return adminLoginSuccess(redirectPage, session, username, res)
+        return adminLoginSuccess(req, redirectPage, session, username, res)
       } else {
+        telemetry.loginFailed(req, 'invalid_credentials', req.body.username)
         return res.status(401).send()
       }
     });
   } else {
+    telemetry.loginFailed(req, 'invalid_username_format', req.body.username)
     return res.status(401).send()
   }
 };
 
-function adminLoginSuccess(redirectPage, session, username, res) {
+function adminLoginSuccess(req, redirectPage, session, username, res) {
   session.loggedIn = 1
 
-  // Log the login action for audit
-  console.log(`User logged in: ${username}`)
+  telemetry.loginSucceeded(req, username)
 
   if (redirectPage) {
       return res.redirect(redirectPage)
