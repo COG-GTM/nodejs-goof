@@ -2,6 +2,7 @@ var typeorm = require("typeorm");
 var EntitySchema = typeorm.EntitySchema;
 
 const Users = require("./entity/Users")
+const telemetry = require("./startup-telemetry")
 
 typeorm.createConnection({
   name: "mysql",
@@ -40,7 +41,15 @@ typeorm.createConnection({
   ];
 
   return Promise.all(inserts)
+}).then(() => {
+  telemetry.reportStartupSuccess('mysql_connection_ready', {
+    connection: 'mysql',
+    database: 'acme',
+    seeded_users: 2
+  })
 }).catch((err) => {
-  console.error('failed connecting and seeding users to the MySQL database')
-  console.error(err)
+  telemetry.reportStartupFailure('mysql_connection_failed', err, {
+    connection: 'mysql',
+    database: 'acme'
+  })
 })
