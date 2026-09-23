@@ -1,6 +1,7 @@
 
 var express = require('express')
 var typeorm = require("typeorm");
+var telemetry = require('../telemetry');
 
 var router = express.Router()
 module.exports = router
@@ -23,6 +24,10 @@ router.get('/', async (req, res, next) => {
 
 })
 
+function actorOf(req) {
+  return req.session && req.session.loggedIn === 1 ? 'authenticated-session' : 'anonymous'
+}
+
 router.post('/', async (req, res, next) => {
   try {
     const mongoConnection = typeorm.getConnection('mysql')
@@ -34,12 +39,22 @@ router.post('/', async (req, res, next) => {
     user.role = req.body.role
 
     const savedRecord = await repo.save(user)
-    console.log("Post has been saved: ", savedRecord)
+
+    telemetry.auditEvent('user.created', {
+      actor: actorOf(req),
+      created_user_id: savedRecord && savedRecord.id,
+      role: user.role
+    })
+    telemetry.incrementCounter('user.create.succeeded')
+
     return res.sendStatus(200)
 
   } catch (err) {
-    console.error(err)
-    console.log({}.where)
-    next();
+    telemetry.trackError('user.create.failed', err, {
+      actor: actorOf(req),
+      role: req.body && req.body.role
+    })
+    telemetry.incrementCounter('user.create.failed')
+    next(err);
   }
 })
