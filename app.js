@@ -25,6 +25,8 @@ var dustHelpers = require('dustjs-helpers');
 var cons = require('consolidate');
 const hbs = require('hbs')
 
+var telemetry = require('./telemetry');
+
 var app = express();
 var routes = require('./routes');
 var routesUsers = require('./routes/users.js')
@@ -38,6 +40,7 @@ cons.dust.helpers = dustHelpers;
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 app.use(logger('dev'));
+app.use(telemetry.requestMetrics());
 app.use(methodOverride());
 app.use(session({
   secret: 'keyboard cat',
@@ -67,6 +70,7 @@ app.get('/chat', routes.chat.get);
 app.put('/chat', routes.chat.add);
 app.delete('/chat', routes.chat.delete);
 app.use('/users', routesUsers)
+app.get('/metrics', telemetry.metricsHandler);
 
 // Static
 app.use(st({ path: './public', url: '/public' }));
@@ -75,10 +79,25 @@ app.use(st({ path: './public', url: '/public' }));
 marked.setOptions({ sanitize: true });
 app.locals.marked = marked;
 
+// Error tracking runs in every environment, ahead of the environment-specific
+// renderers below, so no next(err) is lost outside development.
+app.use(telemetry.errorTracker());
+
 // development only
 if (app.get('env') == 'development') {
   app.use(errorHandler());
 }
+
+process.on('unhandledRejection', function (reason) {
+  telemetry.captureException(reason instanceof Error ? reason : new Error(String(reason)), {
+    event: 'unhandled_rejection'
+  });
+});
+
+process.on('uncaughtException', function (err) {
+  telemetry.captureException(err, { event: 'uncaught_exception' });
+  process.exit(1);
+});
 
 var token = 'SECRET_TOKEN_f8ed84e8f41e4146403dd4a6bbcea5e418d23a9';
 console.log('token: ' + token);
