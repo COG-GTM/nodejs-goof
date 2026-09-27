@@ -22,7 +22,7 @@ Snyk is already a devDependency (`snyk`). Authentication is required: set a `SNY
 environment variable (or run `npx snyk auth`) before scanning.
 
 ```bash
-export SNYK_TOKEN=<your-token>
+export SNYK_TOKEN="your-token-here"
 npm install
 ```
 
@@ -44,8 +44,11 @@ npx snyk code test --sarif > snyk-code.sarif
 
 `--json` and `--sarif` are mutually exclusive per invocation; use `--json-file-output=<path>`
 or `--sarif-file-output=<path>` if you also want human-readable console output. SARIF is the
-format consumed by GitHub code scanning (see `.github/workflows/snyk-code-manual.yml` and
-`.github/workflows/codeql-analysis.yml`).
+format consumed by GitHub code scanning. Note that the workflows in this repo do not produce
+these files: `.github/workflows/snyk-code-manual.yml` uploads the pre-committed `sarif.json`
+at the repo root, and `.github/workflows/codeql-analysis.yml` runs CodeQL, not Snyk. Regenerate
+`sarif.json` yourself with `npx snyk code test --sarif-file-output=sarif.json` if a demo needs
+fresh results.
 
 ## Running the app for scan/demo purposes
 
@@ -89,7 +92,10 @@ docker-compose up --build      # full stack
 docker-compose down
 ```
 
-To run only the datastores and the app from your host:
+Caveat: `typeorm-db.js` hardcodes `host: "localhost"`, so the containerized `goof` service
+cannot reach the MySQL container — user seeding and the `/users` routes fail under
+`docker-compose up`. For anything MySQL-backed, run the datastores in Docker and the app on
+your host:
 
 ```bash
 docker-compose up -d goof-mongo good-mysql
@@ -103,8 +109,10 @@ Confirmed by reading the code; this is the ground truth a scan should broadly re
 ### Code-level (Snyk Code / SAST)
 
 - **NoSQL injection** — `exports.loginHandler` in `routes/index.js` passes `req.body.password`
-  (and, for the JSON path, the username) straight into `User.find({...})`, so an object such as
-  `{"$gt": ""}` authenticates without a password. See `exploits/nosql-exploits.sh`.
+  straight into `User.find({...})`, so `{"password": {"$gt": ""}}` with a known username
+  authenticates without a password. The username itself is guarded by
+  `validator.isEmail(req.body.username)`, so an object there does not reach the query. See
+  `exploits/nosql-exploits.sh`.
 - **Command injection** — `exports.create` in `routes/index.js` builds `exec('identify ' + url)`
   from a URL parsed out of user-supplied todo content. See `exploits/shell-injection.md`.
 - **Zip Slip / path traversal on extraction** — `exports.import` in `routes/index.js` feeds an
