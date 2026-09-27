@@ -37,7 +37,9 @@ For each finding validated:
 
 1. Start the app per **Build instructions** and confirm it responds on
    <http://localhost:3001>.
-2. Exercise the vulnerable route and capture the actual response.
+2. Exercise the vulnerable route and capture the actual response. If the finding has no
+   reachable route (e.g. a dependency or dev-tool finding), say so explicitly and instead
+   capture the scan output identifying it plus proof the app still starts.
 3. **Open Chrome and write "Hello World"** — navigate Chrome to the running app, type
    `Hello World` into a visible input on the page (e.g. the todo content field on `/`), and
    capture a screenshot showing `Hello World` on screen. This step is required evidence; a
