@@ -112,7 +112,8 @@ Confirmed by reading the code; this is the ground truth a scan should broadly re
   straight into `User.find({...})`, so `{"password": {"$gt": ""}}` with a known username
   authenticates without a password. The username itself is guarded by
   `validator.isEmail(req.body.username)`, so an object there does not reach the query. See
-  `exploits/nosql-exploits.sh`.
+  `exploits/nosql-exploits.sh` — the `ns4` alias works; the `ns5` alias (object username) no
+  longer bypasses login because of that guard.
 - **Command injection** — `exports.create` in `routes/index.js` builds `exec('identify ' + url)`
   from a URL parsed out of user-supplied todo content. See `exploits/shell-injection.md`.
 - **Zip Slip / path traversal on extraction** — `exports.import` in `routes/index.js` feeds an
