@@ -99,12 +99,18 @@ exports.save_account_details = function(req, res, next) {
     && validator.isAscii(profile.lastname)
     && validator.isAscii(profile.country)
   ) {
-    // trim any extra spaces on the right of the name
-    profile.firstname = validator.rtrim(profile.firstname)
-    profile.lastname = validator.rtrim(profile.lastname)
+    // pass only the validated fields so request data cannot control view/layout paths
+    const viewData = {
+      email: profile.email,
+      phone: profile.phone,
+      // trim any extra spaces on the right of the name
+      firstname: validator.rtrim(profile.firstname),
+      lastname: validator.rtrim(profile.lastname),
+      country: profile.country
+    }
 
     // render the view
-    return res.render('account.hbs', profile)
+    return res.render('account.hbs', viewData)
   } else {
     // if input validation fails, we just render the view as is
     console.log('error in form details')
