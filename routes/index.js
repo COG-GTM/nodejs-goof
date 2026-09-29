@@ -58,10 +58,22 @@ function adminLoginSuccess(redirectPage, session, username, res) {
   console.log(`User logged in: ${username}`)
 
   if (redirectPage) {
-      return res.redirect(redirectPage)
+      return res.redirect(safeRedirectPath(redirectPage))
   } else {
       return res.redirect('/admin')
   }
+}
+
+function safeRedirectPath(target) {
+  if (typeof target !== 'string' || !target.startsWith('/') || target.startsWith('//') || target.includes('\\')) {
+    return '/'
+  }
+  const base = 'http://localhost'
+  const parsed = new URL(target, base)
+  if (parsed.origin !== base) {
+    return '/'
+  }
+  return parsed.pathname + parsed.search + parsed.hash
 }
 
 exports.login = function (req, res, next) {
