@@ -312,7 +312,7 @@ exports.about_new = function (req, res, next) {
 // same logic using MongoDB.
 const users = [
   // You know password for the user.
-  { name: 'user', password: 'pwd' },
+  { name: 'user', password: process.env.CHAT_USER_PASSWORD || 'changeme' },
   // You don't know password for the admin.
   { name: 'admin', password: Math.random().toString(32), canDelete: true },
 ];
