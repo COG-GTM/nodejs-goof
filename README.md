@@ -1,7 +1,21 @@
-# Goof - Snyk's vulnerable demo app
+# Goof - Snyk's vulnerable demo app (Python port)
 [![Known Vulnerabilities](https://snyk.io/test/github/snyk/goof/badge.svg?style=flat-square)](https://snyk.io/test/github/snyk/goof)
 
-A vulnerable Node.js demo application, based on the [Dreamers Lab tutorial](http://dreamerslab.com/blog/en/write-a-todo-list-with-express-and-mongodb/).
+A vulnerable **Python / Flask** demo application, ported from the original
+Node.js/Express [`nodejs-goof`](https://github.com/snyk-labs/nodejs-goof) (itself
+based on the [Dreamers Lab tutorial](http://dreamerslab.com/blog/en/write-a-todo-list-with-express-and-mongodb/)).
+
+The port keeps the same routes and, importantly, the same **intentional
+vulnerabilities** so the existing exploit walkthroughs still work. Stack mapping:
+
+| Original (Node) | Python port |
+|-----------------|-------------|
+| Express | Flask |
+| EJS / Handlebars / Dust views | Jinja2 templates (`render_template_string` for the injectable routes) |
+| Mongoose (MongoDB) | PyMongo |
+| TypeORM (MySQL) | SQLAlchemy + PyMySQL |
+| `marked` | `markdown` |
+| `adm-zip` | `zipfile` |
 
 ## Features
 
@@ -12,21 +26,30 @@ This vulnerable app includes the following capabilities to experiment with:
 
 ## Running
 ```bash
-mongod &
+git clone https://github.com/COG-GTM/nodejs-goof
+cd nodejs-goof
 
-git clone https://github.com/snyk-labs/nodejs-goof
-npm install
-npm start
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# start the databases (see docker commands below)
+python app.py
 ```
-This will run Goof locally, using a local mongo on the default port and listening on port 3001 (http://localhost:3001)
+This will run Goof locally, connecting to a local MongoDB and MySQL and listening
+on port 3001 (http://localhost:3001).
 
-Note: You *have* to use an old version of MongoDB version due to some of these old libraries' database server APIs. MongoDB 3 is known to work ok.
-
-You can also run the MongoDB server individually via Docker, such as:
+The app needs MongoDB (todos + users) and MySQL (the `acme.users` table). The
+easiest way to get both is Docker:
 
 ```sh
-docker run --rm -p 27017:27017 mongo:3
+docker run -d --rm -p 27017:27017 --name goof-mongo mongo:4.4
+docker run -d --rm -p 3306:3306 --name goof-mysql \
+  -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=acme mysql:5.7
 ```
+
+The app still boots if a database is unavailable — only the routes that touch
+that database will error.
 
 ## Running with docker-compose
 ```bash
@@ -42,23 +65,33 @@ That sets up the MONGOLAB_URI env var so everything after should just work.
 Goof requires attaching a MongoLab service and naming it "goof-mongo" to be deployed on CloudFoundry. 
 The code explicitly looks for credentials to that service. 
 
+### Tests
+Run the test suite with:
+```bash
+pytest
+```
+
 ### Cleanup
 To bulk delete the current list of TODO items from the DB run:
 ```bash
-npm run cleanup
+mongo express-todo --eval 'db.todos.remove({});'
 ```
 
 ## Exploiting the vulnerabilities
 
-This app uses npm dependencies holding known vulnerabilities,
-as well as insecure code that introduces code-level vulnerabilities.
+This app contains insecure code that introduces code-level vulnerabilities. The
+exploit walkthroughs are HTTP-based (`curl` / `httpie`), so they apply equally to
+this Python port and to the original Node app.
 
 The `exploits/` directory includes a series of steps to demonstrate each one.
 
 ### Vulnerabilities in open source dependencies
 
-Here are the exploitable vulnerable packages:
-- [Mongoose - Buffer Memory Exposure](https://snyk.io/vuln/npm:mongoose:20160116) - requires a version <= Node.js 8. For the exploit demo purposes, one can update the Dockerfile `node` base image to use `FROM node:6-stretch`.
+The original Node app demonstrated dependency vulnerabilities through these npm
+packages. The Python port re-implements the equivalent **code-level** behaviour
+(ReDoS-prone reminder parsing, markdown XSS, zip traversal) in pure Python rather
+than depending on the vulnerable npm modules:
+- [Mongoose - Buffer Memory Exposure](https://snyk.io/vuln/npm:mongoose:20160116)
 - [st - Directory Traversal](https://snyk.io/vuln/npm:st:20140206)
 - [ms - ReDoS](https://snyk.io/vuln/npm:ms:20151024)
 - [marked - XSS](https://snyk.io/vuln/npm:marked:20150520)
@@ -74,41 +107,39 @@ Here are the exploitable vulnerable packages:
 * Security misconfiguration exposes server information 
 * Insecure protocol (HTTP) communication 
 
-#### Code injection
+#### Code injection (Server-Side Template Injection)
 
-The page at `/account_details` is rendered as an Handlebars view.
+The page at `/account_details` is rendered as a Jinja2 template
+(`render_template_string` in `routes/main.py`).
 
 The same view is used for both the GET request which shows the account details, as well as the form itself for a POST request which updates the account details. A so-called Server-side Rendering.
 
-The form is completely functional. The way it works is, it receives the profile information from the `req.body` and passes it, as-is to the template. This however means, that the attacker is able to control a variable that flows directly from the request into the view template library.
+The form is completely functional. The way it works is, it receives the profile information from the request body and passes it, as-is, into the template. The `firstname` field flows **unescaped into the template source**, which means the attacker controls data that the template engine evaluates — the Python equivalent of the original Handlebars template-injection bug.
 
-You'd think that what's the worst that can happen because we use a validation to confirm the expected input, however the validation doesn't take into account a new field that can be added to the object, such as `layout`, which when passed to a template language, could lead to Local File Inclusion (Path Traversal) vulnerabilities. Here is a proof-of-concept showing it:
+This leads to Server-Side Template Injection (SSTI). Here is a proof-of-concept showing it (log in first, then submit a `firstname` payload):
 
 ```sh
 curl -X 'POST' --cookie c.txt --cookie-jar c.txt -H 'Content-Type: application/json' --data-binary '{"username": "admin@snyk.io", "password": "SuperSecretPassword"}' 'http://localhost:3001/login'
 ```
 
 ```sh
-curl -X 'POST' --cookie c.txt --cookie-jar c.txt -H 'Content-Type: application/json' --data-binary '{"email": "admin@snyk.io", "firstname": "admin", "lastname": "admin", "country": "IL", "phone": "+972551234123",  "layout": "./../package.json"}' 'http://localhost:3001/account_details'
+curl -X 'POST' --cookie c.txt --cookie-jar c.txt -H 'Content-Type: application/json' --data-binary '{"email": "admin@snyk.io", "firstname": "{{7*7}}", "lastname": "admin", "country": "IL", "phone": "+972551234123"}' 'http://localhost:3001/account_details'
 ```
+
+The response will contain `Account details for: 49`, proving the template engine
+evaluated the injected `{{7*7}}` expression.
 
 Actually, there's even another vulnerability in this code.
-The `validator` library that we use has several known regular expression denial of service vulnerabilities. One of them, is associated with the email regex, which if validated with the `{allow_display_name: true}` option then we can trigger a denial of service for this route:
+The input validation (`validators.py`) uses regular expressions that, like the original `validator` library, can exhibit catastrophic backtracking (ReDoS) on crafted long inputs against the email/profile fields of this route:
 
 ```sh
-curl -X 'POST' -H 'Content-Type: application/json' --data-binary "{\"email\": \"`seq -s "" -f "<" 100000`\"}" 'http://localhost:3001/account_details'
-```
-
-The `validator.rtrim()` sanitizer is also vulnerable, and we can use this to create a similar denial of service attack:
-
-```sh
-curl -X 'POST' -H 'Content-Type: application/json' --data-binary "{\"email\": \"someone@example.com\", \"country\": \"nop\", \"phone\": \"0501234123\", \"lastname\": \"nop\", \"firstname\": \"`node -e 'console.log(" ".repeat(100000) + "!")'`\"}" 'http://localhost:3001/account_details'
+curl -X 'POST' -H 'Content-Type: application/json' --data-binary "{\"email\": \"$(python3 -c 'print("<"*100000)')\"}" 'http://localhost:3001/account_details'
 ```
 
 #### NoSQL injection
 
 A POST request to `/login` will allow for authentication and signing-in to the system as an administrator user.
-It works by exposing `loginHandler` as a controller in `routes/index.js` and uses a MongoDB database and the `User.find()` query to look up the user's details (email as a username and password). One issue is that it indeed stores passwords in plaintext and not hashing them. However, there are other issues in play here.
+It works by exposing `login_handler` as a controller in `routes/main.py` and uses a MongoDB database and the `User.find()` query to look up the user's details (email as a username and password). One issue is that it indeed stores passwords in plaintext and not hashing them. However, there are other issues in play here.
 
 
 We can send a request with an incorrect password to see that we get a failed attempt
@@ -132,83 +163,67 @@ That object structure is passed as-is to the `password` property and has a speci
 
 #### Open redirect
 
-The `/admin` view introduces a `redirectPage` query path, as follows in the admin view:
+The `/admin` view introduces a `redirectPage` query path, as follows in the admin view (`templates/admin.html`):
 
 ```
-<input type="hidden" name="redirectPage" value="<%- redirectPage %>" />
+<input type="hidden" name="redirectPage" value="{{ redirectPage|safe }}" />
 ```
 
-One fault here is that the `redirectPage` is rendered as raw HTML and not properly escaped, because it uses `<%- >` instead of `<%= >`. That itself, introduces a Cross-site Scripting (XSS) vulnerability via:
+One fault here is that the `redirectPage` is rendered as raw HTML and not properly escaped, because it uses the `|safe` filter which disables Jinja2 autoescaping. That itself, introduces a Cross-site Scripting (XSS) vulnerability via:
 
 ```
 http://localhost:3001/login?redirectPage="><script>alert(1)</script>
 ```
 
-To exploit the open redirect, simply provide a URL such as `redirectPage=https://google.com` which exploits the fact that the code doesn't enforce local URLs in `index.js:72`.
+To exploit the open redirect, simply provide a URL such as `redirectPage=https://google.com` which exploits the fact that `admin_login_success` in `routes/main.py` doesn't enforce local URLs.
 
 #### Hardcoded values - session information
 
-The application initializes a cookie-based session on `app.js:40` as follows:
+The application initializes a cookie-based session in `app.py` as follows:
 
-```js
-app.use(session({
-  secret: 'keyboard cat',
-  name: 'connect.sid',
-  cookie: { secure: true }
-}))
+```python
+app.secret_key = "keyboard cat"
+app.config["SESSION_COOKIE_NAME"] = "connect.sid"
 ```
 
-As you can see, the session `secret` used to sign the session is a hardcoded sensitive information inside the code.
+As you can see, the session `secret` used to sign the session is hardcoded sensitive information inside the code.
 
-First attempt to fix it, can be to move it out to a config file such as:
-```js
-module.exports = {
-    cookieSecret: `keyboard cat`
-}
+First attempt to fix it, can be to move it out to a config module such as:
+```python
+COOKIE_SECRET = "keyboard cat"
 ```
 
-And then require the configuration file and use it to initialize the session.
-However, that still maintains the secret information inside another file, and Snyk Code will warn you about it.
+And then import the configuration module and use it to initialize the session.
+However, that still maintains the secret information inside another file, and Snyk Code will warn you about it. The recommended fix is to read it from an environment variable / secrets manager instead.
 
-Another case we can discuss here in session management, is that the cookie setting is initialized with `secure: true` which means it will only be transmitted over HTTPS connections. However, there's no `httpOnly` flag set to true, which means that the default false value of it makes the cookie accessible via JavaScript. Snyk Code highlights this potential security misconfiguration so we can fix it. We can note that Snyk Code shows this as a quality information, and not as a security error.
-
-Snyk Code will also find hardcoded secrets in source code that isn't part of the application logic, such as `tests/` or `examples/` folders. We have a case of that in this application with the `tests/authentication.component.spec.js` file. In the finding, Snyk Code will tag it as `InTest`, `Tests`, or `Mock`, which help us easily triage it and indeed ignore this finding as it isn't actually a case of information exposure.
+There is also a hardcoded `token` value in `app.py`, mirroring the original.
 
 ## Docker Image Scanning
 
-The `Dockerfile` makes use of a base image (`node:6-stretch`) that is known to have system libraries with vulnerabilities.
+The `Dockerfile` makes use of a base image (`python:3.12-slim`) that may have system libraries with known vulnerabilities.
 
 To scan the image for vulnerabilities, run:
 ```bash
-snyk test --docker node:6-stretch --file=Dockerfile
+snyk test --docker python:3.12-slim --file=Dockerfile
 ```
 
 To monitor this image and receive alerts with Snyk:
 ```bash
-snyk monitor --docker node:6-stretch
+snyk monitor --docker python:3.12-slim
 ```
 
 ## Runtime Alerts
 
 Snyk provides the ability to monitor application runtime behavior and detect an invocation of a function is known to be vulnerable and used within open source dependencies that the application makes use of.
 
-The agent is installed and initialized in [app.js](./app.js#L5).
-
-For the agent to report back to your snyk account on the vulnerabilities it detected it needs to know which project on Snyk to associate with the monitoring. Due to that, we need to provide it with the project id through an environment variable `SNYK_PROJECT_ID`
-
-To run the Node.js app with runtime monitoring:
-```bash
-SNYK_PROJECT_ID=<PROJECT_ID> npm start
-```
-
-** The app will continue to work normally even if it's not provided a project id
+The app is started from [app.py](./app.py).
 
 ## Fixing the issues
-To find these flaws in this application (and in your own apps), run:
+To find dependency flaws in this application (and in your own apps), run:
 ```
 npm install -g snyk
-snyk wizard
+snyk test
+snyk code test
 ```
 
-In this application, the default `snyk wizard` answers will fix all the issues.
-When the wizard is done, restart the application and run the exploits again to confirm they are fixed.
+Review the findings, then fix them and run the exploits again to confirm they are resolved.
