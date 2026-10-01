@@ -42,6 +42,12 @@ That sets up the MONGOLAB_URI env var so everything after should just work.
 Goof requires attaching a MongoLab service and naming it "goof-mongo" to be deployed on CloudFoundry. 
 The code explicitly looks for credentials to that service. 
 
+### Chat accounts
+The `/chat` endpoints authenticate against accounts configured through environment variables:
+`CHAT_USER_PASSWORD` (and optional `CHAT_USER_NAME`, default `user`) and `CHAT_ADMIN_PASSWORD`
+(optional `CHAT_ADMIN_NAME`, default `admin`, the only account allowed to delete messages).
+An account whose password variable is unset is disabled.
+
 ### Cleanup
 To bulk delete the current list of TODO items from the DB run:
 ```bash

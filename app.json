@@ -16,6 +16,14 @@
   "env": {
     "MONGOLAB_URI": {
       "required": true
+    },
+    "CHAT_USER_PASSWORD": {
+      "description": "Password for the chat 'user' account (chat posting is disabled when unset)",
+      "generator": "secret"
+    },
+    "CHAT_ADMIN_PASSWORD": {
+      "description": "Password for the chat 'admin' account (chat deletion is disabled when unset)",
+      "generator": "secret"
     }
   },
   "formation": {

@@ -10,6 +10,7 @@ var readline = require('readline');
 var moment = require('moment');
 var exec = require('child_process').exec;
 var validator = require('validator');
+var crypto = require('crypto');
 
 // zip-slip
 var fileType = require('file-type');
@@ -310,20 +311,35 @@ exports.about_new = function (req, res, next) {
 ///////////////////////////////////////////////////////////////////////////////
 // In order of simplicity we are not using any database. But you can write the
 // same logic using MongoDB.
+// Chat accounts are configured through the environment. An account whose
+// password variable is unset is disabled; only a salted scrypt hash is kept.
+function chatAccount(name, password, extra) {
+  if (typeof password !== 'string' || password.length === 0) {
+    return null;
+  }
+  const salt = crypto.randomBytes(16);
+  return Object.assign({
+    name: name,
+    salt: salt,
+    passwordHash: crypto.scryptSync(password, salt, 64),
+  }, extra);
+}
+
 const users = [
-  // You know password for the user.
-  { name: 'user', password: 'pwd' },
-  // You don't know password for the admin.
-  { name: 'admin', password: Math.random().toString(32), canDelete: true },
-];
+  chatAccount(process.env.CHAT_USER_NAME || 'user', process.env.CHAT_USER_PASSWORD),
+  chatAccount(process.env.CHAT_ADMIN_NAME || 'admin', process.env.CHAT_ADMIN_PASSWORD, { canDelete: true }),
+].filter(Boolean);
 
 let messages = [];
 let lastId = 1;
 
 function findUser(auth) {
+  if (typeof auth.name !== 'string' || typeof auth.password !== 'string') {
+    return undefined;
+  }
   return users.find((u) =>
     u.name === auth.name &&
-    u.password === auth.password);
+    crypto.timingSafeEqual(u.passwordHash, crypto.scryptSync(auth.password, u.salt, 64)));
 }
 ///////////////////////////////////////////////////////////////////////////////
 
