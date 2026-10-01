@@ -108,7 +108,7 @@ curl -X 'POST' -H 'Content-Type: application/json' --data-binary "{\"email\": \"
 #### NoSQL injection
 
 A POST request to `/login` will allow for authentication and signing-in to the system as an administrator user.
-It works by exposing `loginHandler` as a controller in `routes/index.js` and uses a MongoDB database and the `User.find()` query to look up the user's details (email as a username and password). One issue is that it indeed stores passwords in plaintext and not hashing them. However, there are other issues in play here.
+It works by exposing `loginHandler` as a controller in `routes/index.js` and uses a MongoDB database and the `User.find()` query to look up the user's details (email as a username and password). Passwords are stored as salted scrypt hashes (see `passwords.js`) and verified at login via a hash comparison, so the stored credentials are not directly usable if the `users` collection leaks.
 
 
 We can send a request with an incorrect password to see that we get a failed attempt
@@ -128,7 +128,7 @@ echo '{"username": "admin@snyk.io", "password": {"$gt": ""}}' | http --json $GOO
 ```
 
 We know the username, and we pass on what seems to be an object of some sort.
-That object structure is passed as-is to the `password` property and has a specific meaning to MongoDB - it uses the `$gt` operation which stands for `greater than`. So, we in essence tell MongoDB to match that username with any record that has a password that is greater than `empty string` which is bound to hit a record. This introduces the NoSQL Injection vector.
+That object structure is passed as-is to the `password` property and has a specific meaning to MongoDB - it uses the `$gt` operation which stands for `greater than`. So, we in essence tell MongoDB to match that username with any record that has a password that is greater than `empty string` which is bound to hit a record. This introduces the NoSQL Injection vector. Note that since passwords are now verified against their hash rather than matched in the query, this particular payload no longer bypasses authentication.
 
 #### Open redirect
 
