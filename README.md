@@ -30,9 +30,17 @@ docker run --rm -p 27017:27017 mongo:3
 
 ## Running with docker-compose
 ```bash
+cp .env.example .env   # then set MYSQL_USER / MYSQL_PASSWORD / MYSQL_ROOT_PASSWORD
 docker-compose up --build
 docker-compose down
 ```
+
+### MySQL configuration
+The `/users` routes use a MySQL database configured only through the environment:
+`MYSQL_USER` and `MYSQL_PASSWORD` (required; the MySQL connection is skipped when unset),
+plus `MYSQL_HOST` (default `localhost`), `MYSQL_PORT` (default `3306`) and `MYSQL_DATABASE` (default `acme`).
+Use a dedicated account with access to that database only, not `root`.
+TypeORM schema `synchronize` and query logging are enabled only when `NODE_ENV=development`.
 
 ### Heroku usage
 Goof requires attaching a MongoLab service to be deployed as a Heroku app. 
