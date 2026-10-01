@@ -2,6 +2,7 @@ var utils = require('../utils');
 var mongoose = require('mongoose');
 var Todo = mongoose.model('Todo');
 var User = mongoose.model('User');
+var passwordHash = require('../password-hash');
 // TODO:
 var hms = require('humanize-ms');
 var ms = require('ms');
@@ -36,15 +37,13 @@ exports.index = function (req, res, next) {
 
 exports.loginHandler = function (req, res, next) {
   if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
-      if (users.length > 0) {
-        const redirectPage = req.body.redirectPage
-        const session = req.session
-        const username = req.body.username
-        return adminLoginSuccess(redirectPage, session, username, res)
-      } else {
-        return res.status(401).send()
-      }
+    User.findOne({ username: req.body.username }, function (err, user) {
+      if (err) return next(err);
+      passwordHash.verify(req.body.password, user ? user.password : null, function (err, valid) {
+        if (err) return next(err);
+        if (!valid) return res.status(401).send()
+        return adminLoginSuccess(req.body.redirectPage, req.session, req.body.username, res)
+      });
     });
   } else {
     return res.status(401).send()
