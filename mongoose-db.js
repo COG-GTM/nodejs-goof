@@ -18,7 +18,6 @@ mongoose.model('User', User);
 
 // CloudFoundry env vars
 var mongoCFUri = cfenv.getAppEnv().getServiceURL('goof-mongo');
-console.log(JSON.stringify(cfenv.getAppEnv()));
 
 // Default Mongo URI is local
 const DOCKER = process.env.DOCKER
@@ -40,13 +39,24 @@ if (mongoCFUri) {
   mongoUri = process.env.MONGODB_URI;
 }
 
-console.log("Using Mongo URI " + mongoUri);
+// Hosts and database name only; never userinfo or query options
+function describeMongoUri(uri) {
+  var match = /^[a-z0-9+.-]+:\/\/([^\/?#]*)(?:\/([^?#]*))?/i.exec(String(uri || ''));
+  if (!match) {
+    return 'an unparseable Mongo URI';
+  }
+  var hosts = match[1].slice(match[1].lastIndexOf('@') + 1) || '(none)';
+  var database = match[2] || '(default)';
+  return 'Mongo host(s) ' + hosts + ', database ' + database;
+}
+
+console.log('Using ' + describeMongoUri(mongoUri));
 
 mongoose.connect(mongoUri);
 
 User = mongoose.model('User');
 User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
-  console.log(users);
+  console.log('admin user lookup returned ' + (users ? users.length : 0) + ' record(s)');
   if (users.length === 0) {
     console.log('no admin');
     new User({ username: 'admin@snyk.io', password: 'SuperSecretPassword' }).save(function (err, user, count) {
@@ -56,3 +66,5 @@ User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
     });
   }
 });
+
+module.exports.describeMongoUri = describeMongoUri;
