@@ -53,7 +53,7 @@ exports.loginHandler = function (req, res, next) {
 
 function adminLoginSuccess(redirectPage, session, username, res) {
   session.loggedIn = 1
-
+  session.username = username
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
