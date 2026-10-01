@@ -2,7 +2,7 @@ var typeorm = require("typeorm");
 var EntitySchema = typeorm.EntitySchema;
 
 const Users = require("./entity/Users")
-
+const QueryLogger = require("./typeorm-logger")
 typeorm.createConnection({
   name: "mysql",
   type: "mysql",
@@ -12,7 +12,7 @@ typeorm.createConnection({
   password: "root",
   database: "acme",
   synchronize: true,
-  "logging": true,
+  logger: new QueryLogger(),
   entities: [
     new EntitySchema(Users)
   ]
@@ -25,7 +25,7 @@ typeorm.createConnection({
 }).then((repo) => {
 
 
-  console.log('Seeding 2 users to MySQL users table: Liran (role: user), Simon (role: admin')
+  console.log('Seeding 2 demo users to MySQL users table')
   const inserts = [
     repo.insert({
       name: "Liran",
@@ -42,5 +42,5 @@ typeorm.createConnection({
   return Promise.all(inserts)
 }).catch((err) => {
   console.error('failed connecting and seeding users to the MySQL database')
-  console.error(err)
+  console.error('error code:', QueryLogger.errorCode(err))
 })
