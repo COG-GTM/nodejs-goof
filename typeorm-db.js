@@ -2,7 +2,7 @@ var typeorm = require("typeorm");
 var EntitySchema = typeorm.EntitySchema;
 
 const Users = require("./entity/Users")
-
+const AuditLog = require("./entity/AuditLog")
 typeorm.createConnection({
   name: "mysql",
   type: "mysql",
@@ -12,9 +12,10 @@ typeorm.createConnection({
   password: "root",
   database: "acme",
   synchronize: true,
-  "logging": true,
+  "logging": false,
   entities: [
-    new EntitySchema(Users)
+    new EntitySchema(Users),
+    new EntitySchema(AuditLog)
   ]
 }).then(() => {
 
