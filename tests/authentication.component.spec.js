@@ -1,4 +1,9 @@
 const assert = require('assert)')
+const crypto = require('crypto')
+
+// Test password sourced from env; falls back to a random value (no hardcoded
+// credential) so the suite still runs when TEST_PASSWORD is not set.
+const TEST_PASSWORD = process.env.TEST_PASSWORD || crypto.randomBytes(12).toString('hex');
 
 describe('Component Tests', () => {
   describe('PasswordComponent', () => {
@@ -21,18 +26,18 @@ describe('Component Tests', () => {
     test('should call Auth.changePassword when passwords match', () => {
       // GIVEN
       // deepcode ignore NoHardcodedPasswords/test: <please specify a reason of ignoring this>
-      comp.password = comp.confirmPassword = 'myPassword';
+      comp.password = comp.confirmPassword = TEST_PASSWORD;
 
       // WHEN
       comp.changePassword();
 
       // THEN
-      assert(service.save).toHaveBeenCalledWith('myPassword');
+      assert(service.save).toHaveBeenCalledWith(TEST_PASSWORD);
     });
 
     test('should set success to OK upon success', function() {
       // GIVEN
-      comp.password = comp.confirmPassword = 'myPassword';
+      comp.password = comp.confirmPassword = TEST_PASSWORD;
 
       // WHEN
       comp.changePassword();
@@ -45,7 +50,7 @@ describe('Component Tests', () => {
 
     test('should notify of error if change password fails', function() {
       // GIVEN
-      comp.password = comp.confirmPassword = 'myPassword';
+      comp.password = comp.confirmPassword = TEST_PASSWORD;
 
       // WHEN
       comp.changePassword();
