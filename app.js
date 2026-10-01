@@ -4,7 +4,7 @@
 
 // mongoose setup
 require('./mongoose-db');
-require('./typeorm-db')
+require('./typeorm-db').connect(process.env);
 
 var st = require('st');
 var crypto = require('crypto');

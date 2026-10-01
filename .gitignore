@@ -12,3 +12,7 @@ npm-debug.log
 .idea/
 .dccache
 
+
+.env
+.env.*
+!.env.example
