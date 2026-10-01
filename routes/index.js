@@ -19,6 +19,46 @@ var fs = require('fs');
 // prototype-pollution
 var _ = require('lodash');
 
+// Minimal in-memory rate limiter (fixed-window per client IP).
+// Used to throttle expensive request handlers (DB access, file parsing,
+// template rendering) against resource-exhaustion / abuse.
+function createRateLimiter(options) {
+  var opts = options || {};
+  var windowMs = opts.windowMs || 60 * 1000;
+  var max = opts.max || 100;
+  var hits = new Map();
+  return function rateLimit(req, res, next) {
+    var key = req.ip || (req.connection && req.connection.remoteAddress) || 'global';
+    var now = Date.now();
+    var entry = hits.get(key);
+    if (!entry || (now - entry.start) >= windowMs) {
+      entry = { start: now, count: 0 };
+      hits.set(key, entry);
+    }
+    entry.count += 1;
+    if (entry.count > max) {
+      res.setHeader('Retry-After', Math.ceil((entry.start + windowMs - now) / 1000));
+      return res.status(429).send('Too many requests, please try again later.');
+    }
+    return next();
+  };
+}
+
+// Wrap a route handler so it is gated by a rate limiter before executing.
+function withRateLimit(limiter, handler) {
+  return function (req, res, next) {
+    limiter(req, res, function () {
+      return handler(req, res, next);
+    });
+  };
+}
+
+var defaultLimiter = createRateLimiter({ windowMs: 60 * 1000, max: 100 });
+
+// Only same-origin relative paths from this allowlist may be used as a
+// post-login redirect target, preventing open-redirect to arbitrary hosts.
+var ALLOWED_REDIRECTS = ['/admin', '/account_details', '/'];
+
 exports.index = function (req, res, next) {
   Todo.
     find({}).
@@ -35,8 +75,16 @@ exports.index = function (req, res, next) {
 };
 
 exports.loginHandler = function (req, res, next) {
-  if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
+  // Reject non-scalar input so Mongo query operators ($gt, $ne, ...) cannot be
+  // injected as objects where plain string credentials are expected, then
+  // coerce to primitive strings before they reach the query.
+  if (typeof req.body.username !== 'string' || typeof req.body.password !== 'string') {
+    return res.status(400).send();
+  }
+  var username = String(req.body.username);
+  var password = String(req.body.password);
+  if (validator.isEmail(username)) {
+    User.find({ username: username, password: password }, function (err, users) {
       if (users.length > 0) {
         const redirectPage = req.body.redirectPage
         const session = req.session
@@ -57,36 +105,39 @@ function adminLoginSuccess(redirectPage, session, username, res) {
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (redirectPage) {
-      return res.redirect(redirectPage)
+  // Resolve to a constant from the allowlist so an attacker-controlled value
+  // can never be used as the redirect target (prevents open redirect).
+  var safeRedirect = ALLOWED_REDIRECTS.find(function (p) { return p === redirectPage });
+  if (safeRedirect) {
+      return res.redirect(safeRedirect)
   } else {
       return res.redirect('/admin')
   }
 }
 
-exports.login = function (req, res, next) {
+exports.login = withRateLimit(defaultLimiter, function (req, res, next) {
   return res.render('admin', {
     title: 'Admin Access',
     granted: false,
     redirectPage: req.query.redirectPage
   });
-};
+});
 
-exports.admin = function (req, res, next) {
+exports.admin = withRateLimit(defaultLimiter, function (req, res, next) {
   return res.render('admin', {
     title: 'Admin Access Granted',
     granted: true,
   });
-};
+});
 
-exports.get_account_details = function(req, res, next) {
+exports.get_account_details = withRateLimit(defaultLimiter, function(req, res, next) {
   // @TODO need to add a database call to get the profile from the database
   // and provide it to the view to display
   const profile = {}
  	return res.render('account.hbs', profile)
-}
+})
 
-exports.save_account_details = function(req, res, next) {
+exports.save_account_details = withRateLimit(defaultLimiter, function(req, res, next) {
   // get the profile details from the JSON
 	const profile = req.body
   // validate the input
@@ -110,7 +161,7 @@ exports.save_account_details = function(req, res, next) {
     console.log('error in form details')
     return res.render('account.hbs')
   }
-}
+})
 
 exports.isLoggedIn = function (req, res, next) {
   if (req.session.loggedIn === 1) {
@@ -149,7 +200,7 @@ function parse(todo) {
   return t;
 }
 
-exports.create = function (req, res, next) {
+exports.create = withRateLimit(defaultLimiter, function (req, res, next) {
   // console.log('req.body: ' + JSON.stringify(req.body));
 
   var item = req.body.content;
@@ -185,7 +236,7 @@ exports.create = function (req, res, next) {
 
     // res.redirect('/#' + todo.content.toString('base64'));
   });
-};
+});
 
 exports.destroy = function (req, res, next) {
   Todo.findById(req.params.id, function (err, todo) {
@@ -238,7 +289,7 @@ function isBlank(str) {
   return (!str || /^\s*$/.test(str));
 }
 
-exports.import = function (req, res, next) {
+exports.import = withRateLimit(defaultLimiter, function (req, res, next) {
   if (!req.files) {
     res.send('No files were uploaded.');
     return;
@@ -293,9 +344,9 @@ exports.import = function (req, res, next) {
   });
 
   res.redirect('/');
-};
+});
 
-exports.about_new = function (req, res, next) {
+exports.about_new = withRateLimit(defaultLimiter, function (req, res, next) {
   console.log(JSON.stringify(req.query));
   return res.render("about_new.dust",
     {
@@ -303,7 +354,7 @@ exports.about_new = function (req, res, next) {
       subhead: 'Vulnerabilities at their best',
       device: req.query.device
     });
-};
+});
 
 // Prototype Pollution
 
