@@ -1,12 +1,13 @@
-<% layout( 'layout' ) -%>
+{% extends "layout.html" %}
+{% block body %}
 <style>
 strong {font-weight: bold}
 </style>
-<h1 id="page-title"><%= title %></h1>
+<h1 id="page-title">{{ title }}</h1>
 
 <div id="list">
   <form action="/login" method="post" accept-charset="utf-8">
-    <% if( granted == false ){ %>
+    {% if granted == False %}
     <div class="item-new">
       <center>username</center>
       <input class="input" type="text" name="username" />
@@ -14,10 +15,11 @@ strong {font-weight: bold}
       <center>password</center>
       <input class="input" type="password" name="password" />
       <center>
-      <input type="hidden" name="redirectPage" value="<%- redirectPage %>" />
+      <input type="hidden" name="redirectPage" value="{{ redirectPage|default('', true)|safe }}" />
       <input type="submit">
       </center>
     </div>
-    <% } %>
+    {% endif %}
   </form>
 </div>
+{% endblock %}

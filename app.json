@@ -11,7 +11,7 @@
     "security",
     "vulnerabilities"
   ],
-  "image": "heroku/nodejs",
+  "image": "heroku/python",
   "scripts": {},
   "env": {
     "MONGOLAB_URI": {
@@ -28,7 +28,7 @@
   ],
   "buildpacks": [
     {
-      "url": "heroku/nodejs"
+      "url": "heroku/python"
     }
   ]
 }

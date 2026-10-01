@@ -1,7 +1,7 @@
 # Goof - Snyk's vulnerable demo app
 [![Known Vulnerabilities](https://snyk.io/test/github/snyk/goof/badge.svg?style=flat-square)](https://snyk.io/test/github/snyk/goof)
 
-A vulnerable Node.js demo application, based on the [Dreamers Lab tutorial](http://dreamerslab.com/blog/en/write-a-todo-list-with-express-and-mongodb/).
+A vulnerable Python (Flask) demo application, ported from the original Node.js/Express version which was based on the [Dreamers Lab tutorial](http://dreamerslab.com/blog/en/write-a-todo-list-with-express-and-mongodb/).
 
 ## Features
 
@@ -15,10 +15,18 @@ This vulnerable app includes the following capabilities to experiment with:
 mongod &
 
 git clone https://github.com/snyk-labs/nodejs-goof
-npm install
-npm start
+pip install -r requirements.txt
+python app.py
 ```
 This will run Goof locally, using a local mongo on the default port and listening on port 3001 (http://localhost:3001)
+
+The `/users` REST endpoint additionally requires a local MySQL server (database `acme`, user `root`/`root`). It is optional for the core todo flows.
+
+Run the tests with:
+```bash
+pip install pytest
+pytest
+```
 
 Note: You *have* to use an old version of MongoDB version due to some of these old libraries' database server APIs. MongoDB 3 is known to work ok.
 
@@ -45,7 +53,7 @@ The code explicitly looks for credentials to that service.
 ### Cleanup
 To bulk delete the current list of TODO items from the DB run:
 ```bash
-npm run cleanup
+mongosh express-todo --eval 'db.todos.deleteMany({});'
 ```
 
 ## Exploiting the vulnerabilities

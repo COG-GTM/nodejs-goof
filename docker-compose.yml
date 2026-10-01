@@ -7,7 +7,6 @@ services:
       - DOCKER=1
     ports:
       - "3001:3001"
-      - "9229:9229"
     links:
       - goof-mongo
     depends_on:
