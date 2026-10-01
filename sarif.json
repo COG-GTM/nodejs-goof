@@ -1782,8 +1782,8 @@
                   "uriBaseId": "%SRCROOT%"
                 },
                 "region": {
-                  "startLine": 77,
-                  "endLine": 113,
+                  "startLine": 76,
+                  "endLine": 112,
                   "startColumn": 18,
                   "endColumn": 1
                 }
@@ -1808,8 +1808,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 77,
-                            "endLine": 113,
+                            "startLine": 76,
+                            "endLine": 112,
                             "startColumn": 18,
                             "endColumn": 1
                           }
@@ -1825,8 +1825,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 86,
-                            "endLine": 86,
+                            "startLine": 85,
+                            "endLine": 85,
                             "startColumn": 10,
                             "endColumn": 26
                           }
@@ -1880,8 +1880,8 @@
                   "uriBaseId": "%SRCROOT%"
                 },
                 "region": {
-                  "startLine": 166,
-                  "endLine": 221,
+                  "startLine": 165,
+                  "endLine": 220,
                   "startColumn": 18,
                   "endColumn": 1
                 }
@@ -1906,8 +1906,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 166,
-                            "endLine": 221,
+                            "startLine": 165,
+                            "endLine": 220,
                             "startColumn": 18,
                             "endColumn": 1
                           }
@@ -1923,8 +1923,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 184,
-                            "endLine": 184,
+                            "startLine": 183,
+                            "endLine": 183,
                             "startColumn": 17,
                             "endColumn": 28
                           }
@@ -1978,8 +1978,8 @@
                   "uriBaseId": "%SRCROOT%"
                 },
                 "region": {
-                  "startLine": 223,
-                  "endLine": 231,
+                  "startLine": 222,
+                  "endLine": 230,
                   "startColumn": 21,
                   "endColumn": 1
                 }
@@ -2004,8 +2004,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 223,
-                            "endLine": 231,
+                            "startLine": 222,
+                            "endLine": 230,
                             "startColumn": 21,
                             "endColumn": 1
                           }
@@ -2021,8 +2021,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 225,
-                            "endLine": 225,
+                            "startLine": 224,
+                            "endLine": 224,
                             "startColumn": 21,
                             "endColumn": 36
                           }
@@ -2077,8 +2077,8 @@
                   "uriBaseId": "%SRCROOT%"
                 },
                 "region": {
-                  "startLine": 109,
-                  "endLine": 109,
+                  "startLine": 108,
+                  "endLine": 108,
                   "startColumn": 5,
                   "endColumn": 24
                 }
@@ -2103,8 +2103,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 80,
-                            "endLine": 80,
+                            "startLine": 79,
+                            "endLine": 79,
                             "startColumn": 14,
                             "endColumn": 21
                           }
@@ -2120,8 +2120,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 80,
-                            "endLine": 80,
+                            "startLine": 79,
+                            "endLine": 79,
                             "startColumn": 14,
                             "endColumn": 21
                           }
@@ -2137,8 +2137,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 80,
-                            "endLine": 80,
+                            "startLine": 79,
+                            "endLine": 79,
                             "startColumn": 7,
                             "endColumn": 10
                           }
@@ -2154,8 +2154,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 82,
-                            "endLine": 82,
+                            "startLine": 81,
+                            "endLine": 81,
                             "startColumn": 36,
                             "endColumn": 39
                           }
@@ -2171,8 +2171,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 94,
-                            "endLine": 94,
+                            "startLine": 93,
+                            "endLine": 93,
                             "startColumn": 18,
                             "endColumn": 21
                           }
@@ -2188,8 +2188,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 55,
-                            "endLine": 55,
+                            "startLine": 54,
+                            "endLine": 54,
                             "startColumn": 16,
                             "endColumn": 19
                           }
@@ -2205,8 +2205,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 56,
-                            "endLine": 56,
+                            "startLine": 55,
+                            "endLine": 55,
                             "startColumn": 11,
                             "endColumn": 14
                           }
@@ -2222,8 +2222,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 56,
-                            "endLine": 56,
+                            "startLine": 55,
+                            "endLine": 55,
                             "startColumn": 7,
                             "endColumn": 7
                           }
@@ -2239,8 +2239,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 59,
-                            "endLine": 59,
+                            "startLine": 58,
+                            "endLine": 58,
                             "startColumn": 18,
                             "endColumn": 18
                           }
@@ -2256,8 +2256,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 61,
-                            "endLine": 61,
+                            "startLine": 60,
+                            "endLine": 60,
                             "startColumn": 16,
                             "endColumn": 16
                           }
@@ -2273,8 +2273,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 69,
-                            "endLine": 69,
+                            "startLine": 68,
+                            "endLine": 68,
                             "startColumn": 9,
                             "endColumn": 9
                           }
@@ -2290,8 +2290,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 69,
-                            "endLine": 69,
+                            "startLine": 68,
+                            "endLine": 68,
                             "startColumn": 9,
                             "endColumn": 15
                           }
@@ -2307,8 +2307,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 74,
-                            "endLine": 74,
+                            "startLine": 73,
+                            "endLine": 73,
                             "startColumn": 10,
                             "endColumn": 10
                           }
@@ -2324,8 +2324,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 98,
-                            "endLine": 98,
+                            "startLine": 97,
+                            "endLine": 97,
                             "startColumn": 14,
                             "endColumn": 17
                           }
@@ -2341,8 +2341,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 98,
-                            "endLine": 98,
+                            "startLine": 97,
+                            "endLine": 97,
                             "startColumn": 5,
                             "endColumn": 11
                           }
@@ -2358,8 +2358,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 100,
-                            "endLine": 100,
+                            "startLine": 99,
+                            "endLine": 99,
                             "startColumn": 26,
                             "endColumn": 29
                           }
@@ -2375,8 +2375,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 109,
-                            "endLine": 109,
+                            "startLine": 108,
+                            "endLine": 108,
                             "startColumn": 26,
                             "endColumn": 29
                           }
@@ -2392,8 +2392,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 109,
-                            "endLine": 109,
+                            "startLine": 108,
+                            "endLine": 108,
                             "startColumn": 26,
                             "endColumn": 37
                           }
@@ -2409,8 +2409,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 109,
-                            "endLine": 109,
+                            "startLine": 108,
+                            "endLine": 108,
                             "startColumn": 26,
                             "endColumn": 46
                           }
@@ -2426,8 +2426,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 109,
-                            "endLine": 109,
+                            "startLine": 108,
+                            "endLine": 108,
                             "startColumn": 26,
                             "endColumn": 56
                           }
@@ -2443,8 +2443,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 109,
-                            "endLine": 109,
+                            "startLine": 108,
+                            "endLine": 108,
                             "startColumn": 5,
                             "endColumn": 24
                           }
@@ -2534,182 +2534,6 @@
           ],
           "properties": {
             "priorityScore": 558,
-            "priorityScoreFactors": [
-              {
-                "label": true,
-                "type": "hotFileSource"
-              },
-              {
-                "label": true,
-                "type": "fixability"
-              }
-            ]
-          }
-        },
-        {
-          "ruleId": "javascript/Sqli",
-          "ruleIndex": 3,
-          "level": "error",
-          "message": {
-            "text": "Unsanitized input from the HTTP request body flows into find, where it is used in an SQL query. This may result in an SQL Injection vulnerability.",
-            "markdown": "Unsanitized input from {0} {1} into {2}, where it is used in an SQL query. This may result in an SQL Injection vulnerability.",
-            "arguments": [
-              "[the HTTP request body](0)",
-              "[flows](1),(2),(3),(4),(5)",
-              "[find](6)"
-            ]
-          },
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "routes/index.js",
-                  "uriBaseId": "%SRCROOT%"
-                },
-                "region": {
-                  "startLine": 39,
-                  "endLine": 39,
-                  "startColumn": 3,
-                  "endColumn": 11
-                }
-              }
-            }
-          ],
-          "fingerprints": {
-            "0": "90e45b3929624a1afa5d50d5e2a4b6d662d6c79e155f7b0bf66b7dd7fac306e5",
-            "1": "12567ef6.4773f344.7fde84c3.750eb3ec.cea4e9be.8020cfdf.cd61fc56.3cd69235.f759b1f9.4773f344.7fde84c3.08906714.79a7d027.5fce695c.c0a0d45c.1ce8e212"
-          },
-          "codeFlows": [
-            {
-              "threadFlows": [
-                {
-                  "locations": [
-                    {
-                      "location": {
-                        "id": 0,
-                        "physicalLocation": {
-                          "artifactLocation": {
-                            "uri": "routes/index.js",
-                            "uriBaseId": "%SRCROOT%"
-                          },
-                          "region": {
-                            "startLine": 38,
-                            "endLine": 38,
-                            "startColumn": 15,
-                            "endColumn": 22
-                          }
-                        }
-                      }
-                    },
-                    {
-                      "location": {
-                        "id": 1,
-                        "physicalLocation": {
-                          "artifactLocation": {
-                            "uri": "routes/index.js",
-                            "uriBaseId": "%SRCROOT%"
-                          },
-                          "region": {
-                            "startLine": 38,
-                            "endLine": 38,
-                            "startColumn": 15,
-                            "endColumn": 22
-                          }
-                        }
-                      }
-                    },
-                    {
-                      "location": {
-                        "id": 2,
-                        "physicalLocation": {
-                          "artifactLocation": {
-                            "uri": "routes/index.js",
-                            "uriBaseId": "%SRCROOT%"
-                          },
-                          "region": {
-                            "startLine": 39,
-                            "endLine": 39,
-                            "startColumn": 25,
-                            "endColumn": 32
-                          }
-                        }
-                      }
-                    },
-                    {
-                      "location": {
-                        "id": 3,
-                        "physicalLocation": {
-                          "artifactLocation": {
-                            "uri": "routes/index.js",
-                            "uriBaseId": "%SRCROOT%"
-                          },
-                          "region": {
-                            "startLine": 39,
-                            "endLine": 39,
-                            "startColumn": 54,
-                            "endColumn": 61
-                          }
-                        }
-                      }
-                    },
-                    {
-                      "location": {
-                        "id": 4,
-                        "physicalLocation": {
-                          "artifactLocation": {
-                            "uri": "routes/index.js",
-                            "uriBaseId": "%SRCROOT%"
-                          },
-                          "region": {
-                            "startLine": 39,
-                            "endLine": 39,
-                            "startColumn": 44,
-                            "endColumn": 51
-                          }
-                        }
-                      }
-                    },
-                    {
-                      "location": {
-                        "id": 5,
-                        "physicalLocation": {
-                          "artifactLocation": {
-                            "uri": "routes/index.js",
-                            "uriBaseId": "%SRCROOT%"
-                          },
-                          "region": {
-                            "startLine": 39,
-                            "endLine": 39,
-                            "startColumn": 13,
-                            "endColumn": 72
-                          }
-                        }
-                      }
-                    },
-                    {
-                      "location": {
-                        "id": 6,
-                        "physicalLocation": {
-                          "artifactLocation": {
-                            "uri": "routes/index.js",
-                            "uriBaseId": "%SRCROOT%"
-                          },
-                          "region": {
-                            "startLine": 39,
-                            "endLine": 39,
-                            "startColumn": 3,
-                            "endColumn": 11
-                          }
-                        }
-                      }
-                    }
-                  ]
-                }
-              ]
-            }
-          ],
-          "properties": {
-            "priorityScore": 808,
             "priorityScoreFactors": [
               {
                 "label": true,
@@ -2977,8 +2801,8 @@
                   "uriBaseId": "%SRCROOT%"
                 },
                 "region": {
-                  "startLine": 86,
-                  "endLine": 86,
+                  "startLine": 85,
+                  "endLine": 85,
                   "startColumn": 5,
                   "endColumn": 26
                 }
@@ -3003,8 +2827,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 80,
-                            "endLine": 80,
+                            "startLine": 79,
+                            "endLine": 79,
                             "startColumn": 14,
                             "endColumn": 21
                           }
@@ -3020,8 +2844,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 80,
-                            "endLine": 80,
+                            "startLine": 79,
+                            "endLine": 79,
                             "startColumn": 14,
                             "endColumn": 21
                           }
@@ -3037,8 +2861,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 80,
-                            "endLine": 80,
+                            "startLine": 79,
+                            "endLine": 79,
                             "startColumn": 7,
                             "endColumn": 10
                           }
@@ -3054,8 +2878,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 82,
-                            "endLine": 82,
+                            "startLine": 81,
+                            "endLine": 81,
                             "startColumn": 36,
                             "endColumn": 39
                           }
@@ -3071,8 +2895,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 83,
-                            "endLine": 83,
+                            "startLine": 82,
+                            "endLine": 82,
                             "startColumn": 15,
                             "endColumn": 18
                           }
@@ -3088,8 +2912,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 83,
-                            "endLine": 83,
+                            "startLine": 82,
+                            "endLine": 82,
                             "startColumn": 15,
                             "endColumn": 24
                           }
@@ -3105,8 +2929,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 83,
-                            "endLine": 83,
+                            "startLine": 82,
+                            "endLine": 82,
                             "startColumn": 15,
                             "endColumn": 34
                           }
@@ -3122,8 +2946,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 83,
-                            "endLine": 83,
+                            "startLine": 82,
+                            "endLine": 82,
                             "startColumn": 9,
                             "endColumn": 11
                           }
@@ -3139,8 +2963,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 86,
-                            "endLine": 86,
+                            "startLine": 85,
+                            "endLine": 85,
                             "startColumn": 10,
                             "endColumn": 26
                           }
@@ -3156,8 +2980,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 86,
-                            "endLine": 86,
+                            "startLine": 85,
+                            "endLine": 85,
                             "startColumn": 5,
                             "endColumn": 26
                           }
@@ -3206,4 +3030,3 @@
     }
   ]
 }
-
