@@ -5,6 +5,8 @@ services:
     container_name: goof
     environment:
       - DOCKER=1
+      - SESSION_SECRET=${SESSION_SECRET:?set SESSION_SECRET to a random value of at least 32 characters}
+      - SESSION_COOKIE_SECURE=false
     ports:
       - "3001:3001"
       - "9229:9229"
