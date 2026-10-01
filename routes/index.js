@@ -10,6 +10,7 @@ var readline = require('readline');
 var moment = require('moment');
 var exec = require('child_process').exec;
 var validator = require('validator');
+var auditLog = require('../service/auditLog');
 
 // zip-slip
 var fileType = require('file-type');
@@ -37,25 +38,40 @@ exports.index = function (req, res, next) {
 exports.loginHandler = function (req, res, next) {
   if (validator.isEmail(req.body.username)) {
     User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
+      if (err) {
+        return rejectLogin(req, res, next, 'lookup_error', err)
+      }
       if (users.length > 0) {
         const redirectPage = req.body.redirectPage
         const session = req.session
-        const username = req.body.username
-        return adminLoginSuccess(redirectPage, session, username, res)
+        return adminLoginSuccess(redirectPage, session, users[0], req, res, next)
       } else {
-        return res.status(401).send()
+        return rejectLogin(req, res, next, 'invalid_credentials')
       }
     });
   } else {
-    return res.status(401).send()
+    return rejectLogin(req, res, next, 'invalid_username_format')
   }
 };
 
-function adminLoginSuccess(redirectPage, session, username, res) {
-  session.loggedIn = 1
+function rejectLogin(req, res, next, reason, lookupError) {
+  try {
+    auditLog.recordLogin(req, lookupError ? 'error' : 'failure', { reason: reason, username: req.body.username })
+  } catch (err) {
+    return next(lookupError || err)
+  }
+  if (lookupError) return next(lookupError)
+  return res.status(401).send()
+}
 
-  // Log the login action for audit
-  console.log(`User logged in: ${username}`)
+function adminLoginSuccess(redirectPage, session, user, req, res, next) {
+  try {
+    auditLog.recordLogin(req, 'success', { userId: user._id, username: user.username })
+  } catch (err) {
+    return next(err)
+  }
+
+  session.loggedIn = 1
 
   if (redirectPage) {
       return res.redirect(redirectPage)

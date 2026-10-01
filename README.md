@@ -28,6 +28,13 @@ You can also run the MongoDB server individually via Docker, such as:
 docker run --rm -p 27017:27017 mongo:3
 ```
 
+### Login audit log
+Login attempts (success, failure, lookup error) are appended to a hash-chained JSON-lines audit log at `logs/audit.log` (file mode `0600`). Each record has a timestamp, outcome/reason, user id (on success), source IP and user agent. Usernames are stored only as an HMAC (`actor_ref`), never in plaintext.
+
+* `AUDIT_LOG_PATH` - override the log location
+* `AUDIT_LOG_HMAC_KEY` - key for `actor_ref`; set it so refs stay stable across restarts
+* `node service/auditLog.js verify [path]` - check the hash chain for tampering
+
 ## Running with docker-compose
 ```bash
 docker-compose up --build
