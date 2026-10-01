@@ -35,8 +35,12 @@ exports.index = function (req, res, next) {
 };
 
 exports.loginHandler = function (req, res, next) {
-  if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
+  // Coerce credentials to strings so attacker-supplied query operator objects
+  // (e.g. { "$gt": "" }) cannot reach the NoSQL query.
+  var username = String(req.body.username);
+  var password = String(req.body.password);
+  if (validator.isEmail(username)) {
+    User.find({ username: username, password: password }, function (err, users) {
       if (users.length > 0) {
         const redirectPage = req.body.redirectPage
         const session = req.session
@@ -57,7 +61,10 @@ function adminLoginSuccess(redirectPage, session, username, res) {
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (redirectPage) {
+  // Only allow local, relative paths. The regex requires a leading "/" that is
+  // not followed by another "/" or "\", blocking absolute ("https://...") and
+  // protocol-relative ("//evil") URLs that enable open redirects.
+  if (typeof redirectPage === 'string' && /^\/[^/\\]/.test(redirectPage)) {
       return res.redirect(redirectPage)
   } else {
       return res.redirect('/admin')
