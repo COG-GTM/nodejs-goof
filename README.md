@@ -16,9 +16,14 @@ mongod &
 
 git clone https://github.com/snyk-labs/nodejs-goof
 npm install
+export SESSION_SECRET="$(openssl rand -hex 32)"
+export SESSION_COOKIE_SECURE=false  # local plain-HTTP only
 npm start
 ```
 This will run Goof locally, using a local mongo on the default port and listening on port 3001 (http://localhost:3001)
+
+The app refuses to start without `SESSION_SECRET` (at least 32 characters, e.g. `openssl rand -hex 32`); load it from your secret store, never commit it.
+The session cookie is `HttpOnly`, `SameSite=Lax` and `Secure` by default. Set `SESSION_COOKIE_SECURE=false` only for local plain-HTTP runs, and `SESSION_TRUST_PROXY=true` when TLS terminates at a reverse proxy (e.g. Heroku).
 
 Note: You *have* to use an old version of MongoDB version due to some of these old libraries' database server APIs. MongoDB 3 is known to work ok.
 
@@ -30,6 +35,7 @@ docker run --rm -p 27017:27017 mongo:3
 
 ## Running with docker-compose
 ```bash
+export SESSION_SECRET="$(openssl rand -hex 32)"
 docker-compose up --build
 docker-compose down
 ```
@@ -37,6 +43,7 @@ docker-compose down
 ### Heroku usage
 Goof requires attaching a MongoLab service to be deployed as a Heroku app. 
 That sets up the MONGOLAB_URI env var so everything after should just work. 
+`app.json` generates a random `SESSION_SECRET` and sets `SESSION_TRUST_PROXY=true` so the `Secure` session cookie is issued behind Heroku's TLS router.
 
 ### CloudFoundry usage
 Goof requires attaching a MongoLab service and naming it "goof-mongo" to be deployed on CloudFoundry. 

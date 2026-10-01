@@ -16,6 +16,13 @@
   "env": {
     "MONGOLAB_URI": {
       "required": true
+    },
+    "SESSION_SECRET": {
+      "description": "Random secret used to sign session cookies",
+      "generator": "secret"
+    },
+    "SESSION_TRUST_PROXY": {
+      "value": "true"
     }
   },
   "formation": {
