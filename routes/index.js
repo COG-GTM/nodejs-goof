@@ -103,15 +103,8 @@ exports.save_account_details = function(req, res, next) {
     profile.firstname = validator.rtrim(profile.firstname)
     profile.lastname = validator.rtrim(profile.lastname)
 
-    // render the view with only the expected profile fields so that
-    // view options (e.g. layout, settings) cannot be supplied by the user
-    return res.render('account.hbs', {
-      firstname: profile.firstname,
-      lastname: profile.lastname,
-      country: profile.country,
-      phone: profile.phone,
-      email: profile.email
-    })
+    // render the view with only the expected profile fields (no user-supplied view options)
+    return res.render('account.hbs', { firstname: profile.firstname, lastname: profile.lastname, country: profile.country, phone: profile.phone, email: profile.email })
   } else {
     // if input validation fails, we just render the view as is
     console.log('error in form details')
