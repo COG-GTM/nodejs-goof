@@ -51,13 +51,23 @@ exports.loginHandler = function (req, res, next) {
   }
 };
 
+function isSafeRedirectUrl(url) {
+  if (typeof url !== 'string') return false;
+  if (!url.startsWith('/')) return false;
+  if (url.startsWith('//')) return false;
+  if (url.startsWith('/\\')) return false;
+  if (url.includes('://')) return false;
+  if (/[\\\x00-\x1f\x7f]/.test(url)) return false;
+  return true;
+}
+
 function adminLoginSuccess(redirectPage, session, username, res) {
   session.loggedIn = 1
 
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (redirectPage) {
+  if (redirectPage && isSafeRedirectUrl(redirectPage)) {
       return res.redirect(redirectPage)
   } else {
       return res.redirect('/admin')
