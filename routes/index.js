@@ -57,7 +57,7 @@ function isSafeRedirectUrl(url) {
   if (url.startsWith('//')) return false;
   if (url.startsWith('/\\')) return false;
   if (url.includes('://')) return false;
-  if (/[\\\r\n]/.test(url)) return false;
+  if (/[\\\x00-\x1f\x7f]/.test(url)) return false;
   return true;
 }
 
