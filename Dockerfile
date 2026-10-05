@@ -1,7 +1,7 @@
 # FROM node:6-stretch
-FROM node:18.13.0
+FROM node:18.20.5-alpine3.19
 
-RUN mkdir /usr/src/goof
+RUN mkdir -p /usr/src/goof
 RUN mkdir /tmp/extracted_files
 COPY . /usr/src/goof
 WORKDIR /usr/src/goof
