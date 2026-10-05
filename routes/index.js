@@ -252,7 +252,7 @@ exports.import = function (req, res, next) {
     importedFileType = { ext: "txt", mime: "text/plain" };
   }
   if (importedFileType["mime"] === zipFileExt["mime"]) {
-    var zip = AdmZip(importFile.data);
+    var zip = new AdmZip(importFile.data);
     var extracted_path = "/tmp/extracted_files";
     zip.extractAllTo(extracted_path, true);
     data = "No backup.txt file found";
