@@ -1,6 +1,9 @@
 # FROM node:6-stretch
 FROM node:18.20.5-alpine3.19
 
+# node:18.13.0 (buildpack-deps) shipped ImageMagick; routes/index.js create() shells out to `identify`.
+RUN apk add --no-cache imagemagick
+
 RUN mkdir -p /usr/src/goof
 RUN mkdir /tmp/extracted_files
 COPY . /usr/src/goof
