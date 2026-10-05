@@ -1,6 +1,8 @@
 # FROM node:6-stretch
 FROM node:18.20.8-bullseye
 
+RUN dpkg --compare-versions "$(dpkg-query -W -f='${Version}' imagemagick-6-common)" ge '8:6.9.11.60+dfsg-1.3+deb11u3'
+
 RUN mkdir /usr/src/goof
 RUN mkdir /tmp/extracted_files
 COPY . /usr/src/goof
