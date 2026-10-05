@@ -1,6 +1,15 @@
 # FROM node:6-stretch
 FROM node:18.13.0
 
+# SNYK-DEBIAN11-LIBXML2-6227804 (CVE-2024-25062): the base image ships
+# libxml2 2.9.10+dfsg-6.7+deb11u3; upgrade to the patched Debian 11 build and
+# fail the build if it is older than 2.9.10+dfsg-6.7+deb11u6.
+RUN apt-get update \
+  && apt-get install -y --only-upgrade --no-install-recommends libxml2 libxml2-dev \
+  && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' libxml2)" ge 2.9.10+dfsg-6.7+deb11u6 \
+  && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' libxml2-dev)" ge 2.9.10+dfsg-6.7+deb11u6 \
+  && rm -rf /var/lib/apt/lists/*
+
 RUN mkdir /usr/src/goof
 RUN mkdir /tmp/extracted_files
 COPY . /usr/src/goof
