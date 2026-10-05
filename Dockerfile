@@ -1,6 +1,16 @@
 # FROM node:6-stretch
 FROM node:18.13.0
 
+# SNYK-DEBIAN11-IMAGEMAGICK-5858556 (CVE-2021-40211): pull the patched
+# imagemagick 8:6.9.11.60+dfsg-1.3+deb11u2 (or later) from bullseye-security.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends --only-upgrade \
+    imagemagick imagemagick-6-common imagemagick-6.q16 \
+    libmagickcore-dev libmagickcore-6.q16-dev libmagickcore-6.q16-6 libmagickcore-6.q16-6-extra \
+    libmagickwand-dev libmagickwand-6.q16-dev libmagickwand-6.q16-6 \
+    libmagickcore-6-arch-config libmagickcore-6-headers libmagickwand-6-headers \
+  && rm -rf /var/lib/apt/lists/*
+
 RUN mkdir /usr/src/goof
 RUN mkdir /tmp/extracted_files
 COPY . /usr/src/goof
