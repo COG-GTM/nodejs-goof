@@ -16,8 +16,11 @@ mongod &
 
 git clone https://github.com/snyk-labs/nodejs-goof
 npm install
+export SESSION_SECRET=$(openssl rand -hex 32)
 npm start
 ```
+`SESSION_SECRET` signs the session cookie and is required (at least 32 characters); the app refuses to start without it.
+
 This will run Goof locally, using a local mongo on the default port and listening on port 3001 (http://localhost:3001)
 
 Note: You *have* to use an old version of MongoDB version due to some of these old libraries' database server APIs. MongoDB 3 is known to work ok.
@@ -30,6 +33,7 @@ docker run --rm -p 27017:27017 mongo:3
 
 ## Running with docker-compose
 ```bash
+export SESSION_SECRET=$(openssl rand -hex 32)
 docker-compose up --build
 docker-compose down
 ```

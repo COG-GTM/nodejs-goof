@@ -16,6 +16,10 @@
   "env": {
     "MONGOLAB_URI": {
       "required": true
+    },
+    "SESSION_SECRET": {
+      "description": "Secret used to sign the express-session cookie",
+      "generator": "secret"
     }
   },
   "formation": {

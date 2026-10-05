@@ -5,6 +5,7 @@ services:
     container_name: goof
     environment:
       - DOCKER=1
+      - SESSION_SECRET
     ports:
       - "3001:3001"
       - "9229:9229"
