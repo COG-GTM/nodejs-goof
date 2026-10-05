@@ -1,6 +1,9 @@
 # FROM node:6-stretch
 FROM node:18.20.5-alpine3.19
 
+# routes/index.js shells out to ImageMagick `identify`; the Debian image bundled it, Alpine does not.
+RUN apk add --no-cache imagemagick
+
 RUN mkdir -p /usr/src/goof
 RUN mkdir /tmp/extracted_files
 COPY . /usr/src/goof
