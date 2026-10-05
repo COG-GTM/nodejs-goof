@@ -1,6 +1,21 @@
 # FROM node:6-stretch
 FROM node:18.13.0
 
+# SNYK-DEBIAN11-IMAGEMAGICK-10752985 (CVE-2025-53019): fixed in 8:6.9.11.60+dfsg-1.3+deb11u6
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends --only-upgrade \
+        imagemagick \
+        imagemagick-6-common \
+        imagemagick-6.q16 \
+        libmagickcore-dev \
+        libmagickcore-6.q16-dev \
+        libmagickcore-6.q16-6 \
+        libmagickcore-6.q16-6-extra \
+        libmagickwand-dev \
+        libmagickwand-6.q16-dev \
+        libmagickwand-6.q16-6 \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN mkdir /usr/src/goof
 RUN mkdir /tmp/extracted_files
 COPY . /usr/src/goof
