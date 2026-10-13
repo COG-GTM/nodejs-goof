@@ -62,10 +62,10 @@ function adminLoginSuccess(redirectPage, session, username, res) {
 
 function getLocalRedirectPath(redirectPage) {
   if (typeof redirectPage !== 'string' || !redirectPage) return null
-  var base = 'http://localhost'
+  var origin = 'http://localhost'
   try {
-    var url = new URL(redirectPage, base)
-    if (url.origin !== base || url.pathname.startsWith('//')) return null
+    var url = new URL(redirectPage, origin + '/login')
+    if (url.origin !== origin || url.pathname.startsWith('//')) return null
     return url.pathname + url.search + url.hash
   } catch (e) {
     return null

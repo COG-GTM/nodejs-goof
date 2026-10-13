@@ -27,6 +27,8 @@ t.test('local redirect targets are preserved', async (t) => {
   t.equal(await login(''), '/admin')
   t.equal(await login('/admin'), '/admin')
   t.equal(await login('/todo?id=1#top'), '/todo?id=1#top')
+  t.equal(await login('?tab=help'), '/login?tab=help')
+  t.equal(await login('admin'), '/admin')
 })
 
 t.test('external redirect targets fall back to /admin', async (t) => {
