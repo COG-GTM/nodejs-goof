@@ -87,8 +87,10 @@ exports.get_account_details = function(req, res, next) {
 }
 
 exports.save_account_details = function(req, res, next) {
-  // get the profile details from the JSON
-	const profile = req.body
+  // get the profile details from the JSON, keeping only the expected fields
+  // so view options such as `layout` can't be injected into res.render()
+  const { firstname, lastname, country, phone, email } = req.body
+  const profile = { firstname, lastname, country, phone, email }
   // validate the input
   if (validator.isEmail(profile.email, { allow_display_name: true })
     // allow_display_name allows us to receive input as:
