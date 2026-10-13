@@ -1,5 +1,6 @@
 var mongoose = require('mongoose');
 var cfenv = require("cfenv");
+var bcrypt = require('bcryptjs');
 var Schema = mongoose.Schema;
 
 var Todo = new Schema({
@@ -13,6 +14,23 @@ var User = new Schema({
   username: String,
   password: String,
 });
+
+var BCRYPT_HASH = /^\$2[aby]\$\d{2}\$/;
+
+User.pre('save', function (next) {
+  var user = this;
+  if (!user.isModified('password')) return next();
+  bcrypt.hash(user.password, 10, function (err, hash) {
+    if (err) return next(err);
+    user.password = hash;
+    next();
+  });
+});
+
+User.methods.comparePassword = function (candidate, cb) {
+  if (typeof candidate !== 'string' || typeof this.password !== 'string') return cb(null, false);
+  bcrypt.compare(candidate, this.password, cb);
+};
 
 mongoose.model('User', User);
 
@@ -55,4 +73,15 @@ User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
       }
     });
   }
+});
+
+// Hash any passwords left in plaintext by older versions
+User.find({}).exec(function (err, users) {
+  if (err) return;
+  users.forEach(function (user) {
+    if (typeof user.password === 'string' && !BCRYPT_HASH.test(user.password)) {
+      user.markModified('password');
+      user.save();
+    }
+  });
 });
