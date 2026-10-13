@@ -15,6 +15,7 @@ var validator = require('validator');
 var fileType = require('file-type');
 var AdmZip = require('adm-zip');
 var fs = require('fs');
+var path = require('path');
 
 // prototype-pollution
 var _ = require('lodash');
@@ -254,6 +255,15 @@ exports.import = function (req, res, next) {
   if (importedFileType["mime"] === zipFileExt["mime"]) {
     var zip = AdmZip(importFile.data);
     var extracted_path = "/tmp/extracted_files";
+    var resolvedRoot = path.resolve(extracted_path);
+    var hasUnsafeEntry = zip.getEntries().some(function (entry) {
+      var target = path.resolve(resolvedRoot, entry.entryName);
+      return target !== resolvedRoot && target.indexOf(resolvedRoot + path.sep) !== 0;
+    });
+    if (hasUnsafeEntry) {
+      res.status(400).send('Invalid zip file: entry path escapes the extraction directory.');
+      return;
+    }
     zip.extractAllTo(extracted_path, true);
     data = "No backup.txt file found";
     fs.readFile('backup.txt', 'ascii', function (err, data) {
