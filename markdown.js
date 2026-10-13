@@ -1,5 +1,17 @@
-var { marked } = require('marked');
+var { Marked } = require('marked');
 var sanitizeHtml = require('sanitize-html');
+
+function escapeHtml(text) {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Show raw HTML in todos as text (as marked's old `sanitize` option did)
+var marked = new Marked({
+  renderer: {
+    html: function (token) { return escapeHtml(token.text); }
+  }
+});
 
 var sanitizeOptions = {
   allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img'])
