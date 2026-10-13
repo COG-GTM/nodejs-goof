@@ -57,10 +57,18 @@ function adminLoginSuccess(redirectPage, session, username, res) {
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (redirectPage) {
-      return res.redirect(redirectPage)
-  } else {
-      return res.redirect('/admin')
+  return res.redirect(getLocalRedirectPath(redirectPage) || '/admin')
+}
+
+function getLocalRedirectPath(redirectPage) {
+  if (typeof redirectPage !== 'string' || !redirectPage) return null
+  var origin = 'http://localhost'
+  try {
+    var url = new URL(redirectPage, origin + '/login')
+    if (url.origin !== origin || url.pathname.startsWith('//')) return null
+    return url.pathname + url.search + url.hash
+  } catch (e) {
+    return null
   }
 }
 
