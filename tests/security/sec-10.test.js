@@ -38,37 +38,64 @@ process.env.PORT = '0';
 require(path.join(root, 'app.js'));
 http.createServer = origCreateServer;
 
+// Save todos in memory instead of MongoDB.
+mongoose.model('Todo').prototype.save = function (cb) { cb(null, this); };
+
+var listening = new Promise(function (resolve) {
+  if (server.listening) return resolve();
+  server.once('listening', resolve);
+});
+tap.teardown(function () { server.close(); });
+
+function request(method, urlPath, form) {
+  var payload = form ? require('querystring').stringify(form) : null;
+  return listening.then(function () {
+    return new Promise(function (resolve, reject) {
+      var req = http.request({
+        host: '127.0.0.1',
+        port: server.address().port,
+        method: method,
+        path: urlPath,
+        headers: payload ? {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': Buffer.byteLength(payload)
+        } : {}
+      }, function (res) {
+        var body = '';
+        res.setEncoding('utf8');
+        res.on('data', function (chunk) { body += chunk; });
+        res.on('end', function () { resolve({ status: res.statusCode, body: body }); });
+      });
+      req.on('error', reject);
+      req.end(payload);
+    });
+  });
+}
+
 function get(urlPath) {
-  return new Promise(function (resolve, reject) {
-    http.get({ host: '127.0.0.1', port: server.address().port, path: urlPath }, function (res) {
-      var body = '';
-      res.setEncoding('utf8');
-      res.on('data', function (chunk) { body += chunk; });
-      res.on('end', function () { resolve({ status: res.statusCode, body: body }); });
-    }).on('error', reject);
+  return request('GET', urlPath);
+}
+
+function createTodo(content) {
+  return request('POST', '/create', { content: content }).then(function (res) {
+    res.todo = Buffer.from(res.body, 'base64').toString();
+    return res;
   });
 }
 
 tap.test('static serving', function (t) {
-  t.teardown(function () { server.close(); });
-
-  function run() {
-    return get('/public/about.html').then(function (res) {
-      t.equal(res.status, 200, 'legitimate static file is still served');
-      t.match(res.body, /BESTest todo app/);
-      return get('/public/%2e%2e/package.json');
-    }).then(function (res) {
-      t.notEqual(res.status, 200, 'encoded ../ to app root is rejected');
-      t.notMatch(res.body, /"name": "goof"/, 'package.json is not leaked');
-      return get('/public/%2e%2e/%2e%2e/%2E%2E/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd');
-    }).then(function (res) {
-      t.notEqual(res.status, 200, 'encoded ../ to /etc/passwd is rejected');
-      t.notMatch(res.body, /root:/, '/etc/passwd is not leaked');
-    });
-  }
-
-  if (server.listening) return run();
-  return new Promise(function (resolve) { server.once('listening', resolve); }).then(run);
+  return get('/public/about.html').then(function (res) {
+    t.equal(res.status, 200, 'legitimate static file is still served');
+    t.match(res.body, /BESTest todo app/);
+    return get('/public/%2e%2e/package.json');
+  }).then(function (res) {
+    t.notEqual(res.status, 200, 'encoded ../ to app root is rejected');
+    t.notMatch(res.body, /"name": "goof"/, 'package.json is not leaked');
+    return get('/public/%2e%2e/%2e%2e/%2E%2E/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd');
+  }).then(function (res) {
+    t.notEqual(res.status, 200, 'encoded ../ to /etc/passwd is rejected');
+    t.notMatch(res.body, /root:/, '/etc/passwd is not leaked');
+  });
 });
 
 tap.test('ms / humanize-ms are not vulnerable to ReDoS', function (t) {
@@ -91,4 +118,19 @@ tap.test('ms / humanize-ms are not vulnerable to ReDoS', function (t) {
   var elapsed = Date.now() - start;
   t.ok(elapsed < 1000, 'long non-matching input parsed in ' + elapsed + 'ms');
   t.end();
+});
+
+tap.test('todo reminders still work through /create', function (t) {
+  return createTodo('Call mom in 20 minutes').then(function (res) {
+    t.equal(res.status, 302);
+    t.equal(res.todo, 'Call mom [20m]', 'reminder is humanized');
+    return createTodo('Buy milk in ');
+  }).then(function (res) {
+    t.equal(res.status, 302, 'empty reminder does not error');
+    t.equal(res.todo, 'Buy milk', 'empty reminder is stripped');
+    return createTodo('Buy milk in \n');
+  }).then(function (res) {
+    t.equal(res.status, 302, 'empty reminder with trailing newline does not error');
+    t.equal(res.todo, 'Buy milk');
+  });
 });

@@ -136,7 +136,7 @@ function parse(todo) {
     var time = t.slice(reminder + remindToken.length);
     time = time.replace(/\n$/, '');
 
-    var period = hms(time);
+    var period = time ? hms(time) : undefined;
 
     console.log('period: ' + period);
 
