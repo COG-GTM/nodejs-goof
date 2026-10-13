@@ -91,3 +91,19 @@ tap.test('session cookie forged with "keyboard cat" is rejected', function (t) {
     });
   });
 });
+
+tap.test('production sets Secure cookies behind a TLS-terminating proxy', function (t) {
+  startApp(sessionOptions({ NODE_ENV: 'production', SESSION_SECRET: 'x' }), function (server, port) {
+    get(port, '/login', { 'X-Forwarded-Proto': 'https' }, function (res) {
+      var cookie = (res.headers['set-cookie'] || [])[0] || '';
+      t.match(cookie, /^connect\.sid=/);
+      t.match(cookie, /Secure/);
+      t.match(cookie, /HttpOnly/);
+      get(port, '/login', {}, function (res2) {
+        t.notOk(res2.headers['set-cookie'], 'no Secure cookie is sent over plain HTTP');
+        server.close();
+        t.end();
+      });
+    });
+  });
+});

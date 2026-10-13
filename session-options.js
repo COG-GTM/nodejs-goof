@@ -15,6 +15,7 @@ module.exports = function sessionOptions(env) {
   return {
     secret: secret,
     name: 'connect.sid',
+    proxy: isProduction,
     cookie: {
       path: '/',
       httpOnly: true,
