@@ -19,7 +19,7 @@ var BCRYPT_HASH = /^\$2[aby]\$\d{2}\$/;
 
 User.pre('save', function (next) {
   var user = this;
-  if (!user.isModified('password') || BCRYPT_HASH.test(user.password)) return next();
+  if (!user.isModified('password')) return next();
   bcrypt.hash(user.password, 10, function (err, hash) {
     if (err) return next(err);
     user.password = hash;
@@ -72,13 +72,16 @@ User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
         console.log('error saving admin user');
       }
     });
-  } else {
-    // Re-hash any admin password left in plaintext by older versions
-    users.forEach(function (user) {
-      if (!BCRYPT_HASH.test(user.password)) {
-        user.markModified('password');
-        user.save();
-      }
-    });
   }
+});
+
+// Hash any passwords left in plaintext by older versions
+User.find({}).exec(function (err, users) {
+  if (err) return;
+  users.forEach(function (user) {
+    if (typeof user.password === 'string' && !BCRYPT_HASH.test(user.password)) {
+      user.markModified('password');
+      user.save();
+    }
+  });
 });

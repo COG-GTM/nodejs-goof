@@ -43,6 +43,7 @@ tap.test('setup: legacy plaintext admin exists before app start', async () => {
   await db.dropDatabase();
   users = db.collection('users');
   await users.insertOne({ username: ADMIN, password: ADMIN_PASSWORD });
+  await users.insertOne({ username: 'legacy@example.com', password: 'legacyPassword' });
 
   require('../../mongoose-db');
   mongoose = require('mongoose');
@@ -50,7 +51,7 @@ tap.test('setup: legacy plaintext admin exists before app start', async () => {
   routes = require('../../routes');
 });
 
-tap.test('existing plaintext admin password is re-hashed on startup', async (t) => {
+tap.test('existing plaintext passwords are re-hashed on startup', async (t) => {
   const admin = await waitFor(async () => {
     const doc = await users.findOne({ username: ADMIN });
     return doc && BCRYPT_HASH.test(doc.password) && doc;
@@ -58,6 +59,11 @@ tap.test('existing plaintext admin password is re-hashed on startup', async (t) 
   t.notEqual(admin.password, ADMIN_PASSWORD, 'password is not stored in plaintext');
   t.ok(bcrypt.compareSync(ADMIN_PASSWORD, admin.password), 'hash matches original password');
   t.equal(await users.countDocuments({ username: ADMIN }), 1, 'no duplicate admin created');
+  const legacy = await waitFor(async () => {
+    const doc = await users.findOne({ username: 'legacy@example.com' });
+    return doc && BCRYPT_HASH.test(doc.password) && doc;
+  });
+  t.ok(bcrypt.compareSync('legacyPassword', legacy.password), 'non-admin legacy user re-hashed');
 });
 
 tap.test('new users are saved with a salted bcrypt hash', async (t) => {
@@ -70,6 +76,13 @@ tap.test('new users are saved with a salted bcrypt hash', async (t) => {
   t.match(a.password, BCRYPT_HASH, 'stored as bcrypt hash');
   t.notEqual(a.password, 'samePassword');
   t.notEqual(a.password, b.password, 'hashes are salted');
+
+  const hashLike = '$2a$10$' + 'x'.repeat(53);
+  await new Promise((resolve, reject) =>
+    new User({ username: 'c@example.com', password: hashLike }).save((err) => (err ? reject(err) : resolve())));
+  const c = await users.findOne({ username: 'c@example.com' });
+  t.notEqual(c.password, hashLike, 'bcrypt-looking passwords are still hashed');
+  t.ok(bcrypt.compareSync(hashLike, c.password));
 });
 
 tap.test('login compares against the hash', async (t) => {
@@ -83,6 +96,7 @@ tap.test('login compares against the hash', async (t) => {
   const stored = (await users.findOne({ username: ADMIN })).password;
   t.equal((await login(ADMIN, stored)).status, 401, 'stored hash is not accepted as a password');
   t.equal((await login('nobody@example.com', ADMIN_PASSWORD)).status, 401, 'unknown user rejected');
+  t.equal((await login('legacy@example.com', 'legacyPassword')).status, 302, 'migrated legacy user logs in');
 });
 
 tap.teardown(async () => {
