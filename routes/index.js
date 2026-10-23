@@ -252,9 +252,15 @@ exports.import = function (req, res, next) {
     importedFileType = { ext: "txt", mime: "text/plain" };
   }
   if (importedFileType["mime"] === zipFileExt["mime"]) {
-    var zip = AdmZip(importFile.data);
     var extracted_path = "/tmp/extracted_files";
-    zip.extractAllTo(extracted_path, true);
+    try {
+      var zip = new AdmZip(importFile.data);
+      utils.safeExtractZip(zip, extracted_path);
+    } catch (err) {
+      console.log('rejected import archive: ' + err.message);
+      res.status(400).send('Invalid archive.');
+      return;
+    }
     data = "No backup.txt file found";
     fs.readFile('backup.txt', 'ascii', function (err, data) {
       if (!err) {
