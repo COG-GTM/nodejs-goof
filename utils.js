@@ -1,3 +1,4 @@
+var fs = require('fs');
 var path = require('path');
 
 function isUnsafeZipEntryName(name, root) {
@@ -7,6 +8,25 @@ function isUnsafeZipEntryName(name, root) {
   if (name.split(/[\\/]+/).indexOf('..') !== -1) return true;
   var dest = path.resolve(root, name);
   return dest !== root && dest.indexOf(root + path.sep) !== 0;
+}
+
+function isSymlink(p) {
+  try {
+    return fs.lstatSync(p).isSymbolicLink();
+  } catch (err) {
+    if (err.code === 'ENOENT') return false;
+    throw err;
+  }
+}
+
+function hasSymlinkBelowRoot(root, name) {
+  var current = root;
+  var parts = name.split(/[\\/]+/).filter(Boolean);
+  for (var i = 0; i < parts.length; i++) {
+    current = path.join(current, parts[i]);
+    if (isSymlink(current)) return true;
+  }
+  return false;
 }
 
 module.exports = {
@@ -41,8 +61,13 @@ module.exports = {
     var root    = path.resolve( targetDir );
     var entries = zip.getEntries();
 
+    if( isSymlink( root )){
+      throw new Error( 'Extraction directory is a symlink: ' + root );
+    }
+
     entries.forEach( function ( entry ){
-      if( isUnsafeZipEntryName( entry.entryName, root )){
+      if( isUnsafeZipEntryName( entry.entryName, root ) ||
+          hasSymlinkBelowRoot( root, entry.entryName )){
         throw new Error( 'Unsafe zip entry path: ' + entry.entryName );
       }
     });

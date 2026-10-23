@@ -51,3 +51,30 @@ tap.test('rejects traversal and absolute entry names', function (t) {
   t.same(fs.readdirSync(target), []);
   t.end();
 });
+
+tap.test('rejects entries that would be written through an existing symlink', function (t) {
+  var parent = tmpDir();
+  var outside = path.join(parent, 'outside');
+  var target = path.join(parent, 'out');
+  fs.mkdirSync(outside);
+  fs.mkdirSync(target);
+  fs.symlinkSync(outside, path.join(target, 'link'));
+  fs.symlinkSync(path.join(outside, 'victim.txt'), path.join(target, 'file-link.txt'));
+
+  ['link/escaped.txt', 'file-link.txt'].forEach(function (name) {
+    t.throws(function () { utils.safeExtractZip(zipWith(name, 'pwned'), target); }, /Unsafe zip entry path/, name);
+  });
+  t.same(fs.readdirSync(outside), []);
+  t.end();
+});
+
+tap.test('rejects an extraction directory that is itself a symlink', function (t) {
+  var parent = tmpDir();
+  var outside = path.join(parent, 'outside');
+  var target = path.join(parent, 'out');
+  fs.mkdirSync(outside);
+  fs.symlinkSync(outside, target);
+  t.throws(function () { utils.safeExtractZip(zipWith('backup.txt', 'pwned'), target); }, /is a symlink/);
+  t.same(fs.readdirSync(outside), []);
+  t.end();
+});
