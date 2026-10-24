@@ -35,8 +35,17 @@ exports.index = function (req, res, next) {
 };
 
 exports.loginHandler = function (req, res, next) {
-  if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
+  var username = req.body.username;
+  var password = req.body.password;
+
+  // Coerce credentials to primitive strings so query-operator objects
+  // (e.g. { $gt: '' }) cannot be injected into the MongoDB query (jssecurity:S5147).
+  if (typeof username !== 'string' || typeof password !== 'string') {
+    return res.status(401).send();
+  }
+
+  if (validator.isEmail(username)) {
+    User.find({ username: username, password: password }, function (err, users) {
       if (users.length > 0) {
         const redirectPage = req.body.redirectPage
         const session = req.session
