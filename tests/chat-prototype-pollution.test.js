@@ -39,6 +39,25 @@ function request(server, method, body) {
   });
 }
 
+tap.test('lodash is at or above the fixed version', (t) => {
+  const version = require('lodash/package.json').version;
+  const [major, minor, patch] = version.split('.').map(Number);
+  t.ok(major > 4 || (major === 4 && (minor > 17 || (minor === 17 && patch >= 21))),
+    `lodash ${version} >= 4.17.21 (CVE-2019-10744, CVE-2020-8203, CVE-2021-23337)`);
+  t.end();
+});
+
+tap.test('sanitizeUntrustedInput strips prototype-polluting keys on its own', (t) => {
+  const dirty = JSON.parse('{"text":"hi","__proto__":{"polluted":"yes"},"constructor":{"prototype":{"polluted":"yes"}},"nested":[{"prototype":1,"ok":2}]}');
+  const clean = routes.sanitizeUntrustedInput(dirty);
+  t.same(Object.keys(clean), ['text', 'nested'], 'top-level __proto__ and constructor keys are dropped');
+  t.same(clean.nested, [{ ok: 2 }], 'nested prototype key is dropped, other nested data kept');
+  t.notOk(Object.prototype.hasOwnProperty.call(clean, '__proto__'), 'no own __proto__ key survives');
+  t.equal(Object.getPrototypeOf(clean), Object.prototype, 'result is a plain object');
+  t.equal(routes.sanitizeUntrustedInput(undefined), undefined, 'missing message is passed through');
+  t.end();
+});
+
 tap.test('PUT /chat does not pollute Object.prototype', (t) => {
   const server = app.listen(0, '127.0.0.1', async () => {
     try {
@@ -55,6 +74,11 @@ tap.test('PUT /chat does not pollute Object.prototype', (t) => {
       });
       t.equal(ctorRes.status, 200, 'constructor.prototype payload is accepted');
       t.equal(({}).polluted, undefined, 'constructor.prototype payload does not set ({}).polluted');
+
+      const afterCtor = await request(server, 'GET');
+      const ctorMsg = afterCtor.body[afterCtor.body.length - 1];
+      t.notOk(Object.prototype.hasOwnProperty.call(ctorMsg, 'constructor'),
+        'chat.add strips the constructor key before merging (handler-level sanitizer is wired in)');
 
       const okRes = await request(server, 'PUT', {
         auth,

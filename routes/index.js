@@ -347,6 +347,7 @@ function sanitizeUntrustedInput(value) {
   }
   return Object.assign({}, safe);
 }
+exports.sanitizeUntrustedInput = sanitizeUntrustedInput;
 ///////////////////////////////////////////////////////////////////////////////
 
 exports.chat = {
