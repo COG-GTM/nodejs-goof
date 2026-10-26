@@ -325,6 +325,29 @@ function findUser(auth) {
     u.name === auth.name &&
     u.password === auth.password);
 }
+
+// Keys that can reach Object.prototype through a deep merge/assign.
+const UNSAFE_KEYS = ['__proto__', 'constructor', 'prototype'];
+
+// Returns a copy of untrusted JSON data with prototype-polluting keys removed,
+// so request bodies can never be merged into Object.prototype.
+function sanitizeUntrustedInput(value) {
+  if (Array.isArray(value)) {
+    return value.map(sanitizeUntrustedInput);
+  }
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+  const safe = Object.create(null);
+  for (const key of Object.keys(value)) {
+    if (UNSAFE_KEYS.indexOf(key) !== -1) {
+      continue;
+    }
+    safe[key] = sanitizeUntrustedInput(value[key]);
+  }
+  return Object.assign({}, safe);
+}
+exports.sanitizeUntrustedInput = sanitizeUntrustedInput;
 ///////////////////////////////////////////////////////////////////////////////
 
 exports.chat = {
@@ -344,7 +367,7 @@ exports.chat = {
       icon: '👋',
     };
 
-    _.merge(message, req.body.message, {
+    _.merge(message, sanitizeUntrustedInput(req.body.message), {
       id: lastId++,
       timestamp: Date.now(),
       userName: user.name,
