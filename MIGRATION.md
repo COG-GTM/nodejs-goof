@@ -51,6 +51,7 @@ App migration wave target: Node 22 LTS, `linux/amd64` container image built in G
 ## Ports
 
 - 3001 HTTP (app). 9229 was exposed for the inspector; not exposed in the new image.
+- Health routes: `GET /healthz` is process liveness (container `HEALTHCHECK`, Kubernetes liveness probe); `GET /readyz` returns 503 until both MongoDB and MySQL are connected (Kubernetes readiness probe).
 
 ## Secrets today
 
