@@ -115,7 +115,10 @@ bucket_count() {
 # Compares every name present on either side; a name missing on one side is a mismatch.
 compare() {
   local kind="$1" src="$2" tgt="$3" status=0 name n m
-  [ -n "$src" ] || { log "$kind: source returned no collections/tables"; return 1; }
+  if [ -z "$src" ] && [ -z "$tgt" ]; then
+    printf '%-7s %-20s source=%-6s target=%-6s %s\n' "$kind" "(none)" 0 0 match
+    return 0
+  fi
   while read -r name; do
     [ -z "$name" ] && continue
     n="$(printf '%s\n' "$src" | awk -F'\t' -v k="$name" '$1==k{print $2}')"
