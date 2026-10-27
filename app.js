@@ -6,6 +6,8 @@
 require('./mongoose-db');
 require('./typeorm-db')
 
+var mongoose = require('mongoose');
+var typeorm = require('typeorm');
 var st = require('st');
 var crypto = require('crypto');
 var express = require('express');
@@ -49,6 +51,13 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(fileUpload());
 
 // Routes
+app.get('/healthz', function (req, res) { res.send('ok'); });
+app.get('/readyz', function (req, res) {
+  var mongoUp = mongoose.connection.readyState === 1;
+  var mysqlUp = false;
+  try { mysqlUp = typeorm.getConnection('mysql').isConnected; } catch (e) {}
+  res.status(mongoUp && mysqlUp ? 200 : 503).json({ mongodb: mongoUp, mysql: mysqlUp });
+});
 app.use(routes.current_user);
 app.get('/', routes.index);
 app.get('/login', routes.login);

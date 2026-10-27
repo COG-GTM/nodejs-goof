@@ -29,6 +29,8 @@ if (DOCKER === '1') {
 }
 
 
+var mongoOptions = {};
+
 // CloudFoundry Mongo URI
 if (mongoCFUri) {
   mongoUri = mongoCFUri;
@@ -38,11 +40,22 @@ if (mongoCFUri) {
 } else if (process.env.MONGODB_URI) {
   // Generic (plus Heroku) env var support
   mongoUri = process.env.MONGODB_URI;
+} else if (process.env.MONGO_HOST) {
+  // Platform: separate connection-secret fields; credentials go in options so reserved characters need no URI escaping
+  mongoUri = 'mongodb://' + process.env.MONGO_HOST + ':' + (process.env.MONGO_PORT || '27017') + '/' +
+    (process.env.MONGO_DATABASE || 'express-todo');
+  if (process.env.MONGO_USER) {
+    mongoOptions = {
+      user: process.env.MONGO_USER,
+      pass: process.env.MONGO_PASSWORD || '',
+      auth: { authSource: process.env.MONGO_AUTH_SOURCE || 'admin' }
+    };
+  }
 }
 
-console.log("Using Mongo URI " + mongoUri);
+console.log("Using Mongo URI " + mongoUri.replace(/\/\/[^@\/]*@/, '//***@'));
 
-mongoose.connect(mongoUri);
+mongoose.connect(mongoUri, mongoOptions);
 
 User = mongoose.model('User');
 User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {

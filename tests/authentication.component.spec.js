@@ -1,3 +1,4 @@
+// NOT RUN: copied Angular component spec; the component under test does not exist in this repo and no runner is configured. Kept as is (see MIGRATION.md).
 const assert = require('assert)')
 
 describe('Component Tests', () => {
