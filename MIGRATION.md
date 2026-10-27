@@ -44,6 +44,7 @@ App migration wave target: Node 22 LTS, `linux/amd64` container image built in G
 | `PORT` | `app.js` | HTTP port, default 3001 |
 | `NODE_ENV` | `app.js` (`app.get('env')`) | `development` enables `errorhandler` |
 | `MONGODB_URI` / `MONGOLAB_URI` | `mongoose-db.js` | Mongo connection string (wins over defaults) |
+| `MONGO_HOST`, `MONGO_PORT`, `MONGO_USER`, `MONGO_PASSWORD`, `MONGO_DATABASE`, `MONGO_AUTH_SOURCE` | `mongoose-db.js` (new) | Used when no `MONGODB_URI` is set (platform connection secrets); credentials are passed as driver options, not in the URI, and the logged URI is redacted |
 | `DOCKER` | `mongoose-db.js` | `1` switches the default Mongo host to `goof-mongo` |
 | `VCAP_SERVICES` (via `cfenv`, service `goof-mongo`) | `mongoose-db.js` | CloudFoundry binding, highest precedence |
 | `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE` | `typeorm-db.js` (new) | MySQL connection; defaults keep the previous local values |

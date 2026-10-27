@@ -4,6 +4,7 @@
 #   MySQL:   mysqldump | mysql (acme)
 #   Bucket:  mc mirror into MinIO, only when SRC_S3_URL is set (the app has no bucket today)
 # Tools run in containers on DOCKER_NETWORK, so only docker is needed on the host.
+# Exits non-zero on any failed copy, failed count query or count mismatch.
 # Passwords are read from the environment by name and never printed.
 set -euo pipefail
 
@@ -30,6 +31,10 @@ MYSQL_IMAGE="${MYSQL_IMAGE:-mysql:5.7}"
 MC_IMAGE="${MC_IMAGE:-cgr.dev/chainguard/minio-client:latest}"
 
 log() { printf '[migrate-data] %s\n' "$*" >&2; }
+die() { log "ERROR: $*"; exit 1; }
+valid_name() { [[ "$1" =~ ^[A-Za-z0-9_-]+$ ]]; }
+valid_name "$MONGO_DB" || die "MONGO_DB must match [A-Za-z0-9_-]+"
+valid_name "$MYSQL_DB" || die "MYSQL_DB must match [A-Za-z0-9_-]+"
 mongo_tool() { docker run --rm -i --network "$DOCKER_NETWORK" "$MONGO_IMAGE" "$@"; }
 mysql_tool() { docker run --rm -i --network "$DOCKER_NETWORK" -e MYSQL_PWD "$MYSQL_IMAGE" "$@"; }
 
@@ -65,6 +70,14 @@ move_mysql() {
     | MYSQL_PWD="$TGT_MYSQL_PASSWORD" mysql_tool mysql -h "$TGT_MYSQL_HOST" -P "$TGT_MYSQL_PORT" -u "$TGT_MYSQL_USER"
 }
 
+# mc reads aliases from MC_HOST_<alias>=<scheme>://<key>:<secret>@<host>; the image has no shell.
+mc_host() { local u="$1"; printf '%s://%s:%s@%s' "${u%%://*}" "$2" "$3" "${u#*://}"; }
+mc_tool() {
+  MC_HOST_src="$(mc_host "$SRC_S3_URL" "$SRC_S3_ACCESS_KEY" "$SRC_S3_SECRET_KEY")" \
+  MC_HOST_tgt="$(mc_host "$TGT_S3_URL" "$TGT_S3_ACCESS_KEY" "$TGT_S3_SECRET_KEY")" \
+    docker run --rm --network "$DOCKER_NETWORK" -e MC_HOST_src -e MC_HOST_tgt "$MC_IMAGE" "$@"
+}
+
 move_bucket() {
   if [ -z "${SRC_S3_URL:-}" ]; then
     log "bucket: none configured for this app (SRC_S3_URL unset), nothing to mirror"
@@ -73,12 +86,8 @@ move_bucket() {
   : "${SRC_S3_BUCKET:?}" "${SRC_S3_ACCESS_KEY:?}" "${SRC_S3_SECRET_KEY:?}"
   : "${TGT_S3_URL:?}" "${TGT_S3_BUCKET:?}" "${TGT_S3_ACCESS_KEY:?}" "${TGT_S3_SECRET_KEY:?}"
   log "bucket: mc mirror ${SRC_S3_BUCKET} -> MinIO ${TGT_S3_BUCKET}"
-  docker run --rm --network "$DOCKER_NETWORK" --entrypoint sh \
-    -e SRC_S3_URL -e SRC_S3_BUCKET -e SRC_S3_ACCESS_KEY -e SRC_S3_SECRET_KEY \
-    -e TGT_S3_URL -e TGT_S3_BUCKET -e TGT_S3_ACCESS_KEY -e TGT_S3_SECRET_KEY "$MC_IMAGE" -c '
-      mc alias set src "$SRC_S3_URL" "$SRC_S3_ACCESS_KEY" "$SRC_S3_SECRET_KEY" >/dev/null &&
-      mc alias set tgt "$TGT_S3_URL" "$TGT_S3_ACCESS_KEY" "$TGT_S3_SECRET_KEY" >/dev/null &&
-      mc mb -p "tgt/$TGT_S3_BUCKET" >/dev/null && mc mirror --overwrite "src/$SRC_S3_BUCKET" "tgt/$TGT_S3_BUCKET"'
+  mc_tool mb -p "tgt/$TGT_S3_BUCKET" >/dev/null
+  mc_tool mirror --overwrite "src/$SRC_S3_BUCKET" "tgt/$TGT_S3_BUCKET" >/dev/null
 }
 
 mongo_counts() {
@@ -87,26 +96,34 @@ mongo_counts() {
 }
 
 mysql_counts() {
-  local host="$1" port="$2" user="$3" pw="$4" t
-  for t in $(MYSQL_PWD="$pw" mysql_tool mysql -h "$host" -P "$port" -u "$user" -N -B \
-      -e "SELECT table_name FROM information_schema.tables WHERE table_schema='${MYSQL_DB}' AND table_type='BASE TABLE' ORDER BY table_name"); do
-    printf '%s\t%s\n' "$t" "$(MYSQL_PWD="$pw" mysql_tool mysql -h "$host" -P "$port" -u "$user" -N -B -e "SELECT COUNT(*) FROM \`${MYSQL_DB}\`.\`$t\`")"
+  local host="$1" port="$2" user="$3" pw="$4" tables t n
+  tables="$(MYSQL_PWD="$pw" mysql_tool mysql -h "$host" -P "$port" -u "$user" -N -B \
+    -e "SELECT table_name FROM information_schema.tables WHERE table_schema='${MYSQL_DB}' AND table_type='BASE TABLE' ORDER BY table_name")" || return 1
+  for t in $tables; do
+    valid_name "$t" || { log "unexpected table name: $t"; return 1; }
+    n="$(MYSQL_PWD="$pw" mysql_tool mysql -h "$host" -P "$port" -u "$user" -N -B -e "SELECT COUNT(*) FROM \`${MYSQL_DB}\`.\`$t\`")" || return 1
+    printf '%s\t%s\n' "$t" "$n"
   done
 }
 
 bucket_count() {
-  docker run --rm --network "$DOCKER_NETWORK" --entrypoint sh -e URL="$1" -e AK="$2" -e SK="$3" -e B="$4" "$MC_IMAGE" -c \
-    'mc alias set x "$URL" "$AK" "$SK" >/dev/null && mc ls --recursive "x/$B" | wc -l'
+  local listing
+  listing="$(mc_tool ls --recursive "$1/$2")" || return 1
+  printf '%s\n' "$listing" | grep -c . || true
 }
 
+# Compares every name present on either side; a name missing on one side is a mismatch.
 compare() {
   local kind="$1" src="$2" tgt="$3" status=0 name n m
-  while IFS=$'\t' read -r name n; do
+  [ -n "$src" ] || { log "$kind: source returned no collections/tables"; return 1; }
+  while read -r name; do
     [ -z "$name" ] && continue
+    n="$(printf '%s\n' "$src" | awk -F'\t' -v k="$name" '$1==k{print $2}')"
     m="$(printf '%s\n' "$tgt" | awk -F'\t' -v k="$name" '$1==k{print $2}')"
-    printf '%-7s %-20s source=%-6s target=%-6s %s\n' "$kind" "$name" "$n" "${m:-missing}" "$([ "$n" = "${m:-}" ] && echo match || echo MISMATCH)"
-    [ "$n" = "${m:-}" ] || status=1
-  done <<<"$src"
+    printf '%-7s %-20s source=%-6s target=%-6s %s\n' "$kind" "$name" "${n:-missing}" "${m:-missing}" \
+      "$([ -n "$n" ] && [ "$n" = "$m" ] && echo match || echo MISMATCH)"
+    { [ -n "$n" ] && [ "$n" = "$m" ]; } || status=1
+  done < <(printf '%s\n%s\n' "$src" "$tgt" | cut -f1 | sort -u)
   return $status
 }
 
@@ -116,16 +133,17 @@ main() {
   move_mysql
   move_bucket
 
-  local rc=0
+  local rc=0 ms mt ys yt so to
+  ms="$(mongo_counts "$SRC_MONGO_URI")" || die "MongoDB source count failed"
+  mt="$(mongo_counts "$TGT_MONGO_URI")" || die "MongoDB target count failed"
+  ys="$(mysql_counts "$SRC_MYSQL_HOST" "$SRC_MYSQL_PORT" "$SRC_MYSQL_USER" "$SRC_MYSQL_PASSWORD")" || die "MySQL source count failed"
+  yt="$(mysql_counts "$TGT_MYSQL_HOST" "$TGT_MYSQL_PORT" "$TGT_MYSQL_USER" "$TGT_MYSQL_PASSWORD")" || die "MySQL target count failed"
   echo "== record counts"
-  compare mongodb "$(mongo_counts "$SRC_MONGO_URI")" "$(mongo_counts "$TGT_MONGO_URI")" || rc=1
-  compare mysql \
-    "$(mysql_counts "$SRC_MYSQL_HOST" "$SRC_MYSQL_PORT" "$SRC_MYSQL_USER" "$SRC_MYSQL_PASSWORD")" \
-    "$(mysql_counts "$TGT_MYSQL_HOST" "$TGT_MYSQL_PORT" "$TGT_MYSQL_USER" "$TGT_MYSQL_PASSWORD")" || rc=1
+  compare mongodb "$ms" "$mt" || rc=1
+  compare mysql "$ys" "$yt" || rc=1
   if [ -n "${SRC_S3_URL:-}" ]; then
-    local so to
-    so="$(bucket_count "$SRC_S3_URL" "$SRC_S3_ACCESS_KEY" "$SRC_S3_SECRET_KEY" "$SRC_S3_BUCKET")"
-    to="$(bucket_count "$TGT_S3_URL" "$TGT_S3_ACCESS_KEY" "$TGT_S3_SECRET_KEY" "$TGT_S3_BUCKET")"
+    so="$(bucket_count src "$SRC_S3_BUCKET")" || die "source bucket listing failed"
+    to="$(bucket_count tgt "$TGT_S3_BUCKET")" || die "target bucket listing failed"
     printf '%-7s %-20s source=%-6s target=%-6s %s\n' objects "$SRC_S3_BUCKET" "$so" "$to" "$([ "$so" = "$to" ] && echo match || echo MISMATCH)"
     [ "$so" = "$to" ] || rc=1
   else
