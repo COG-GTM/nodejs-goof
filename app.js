@@ -49,6 +49,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(fileUpload());
 
 // Routes
+app.get('/healthz', function (req, res) { res.send('ok'); });
 app.use(routes.current_user);
 app.get('/', routes.index);
 app.get('/login', routes.login);
