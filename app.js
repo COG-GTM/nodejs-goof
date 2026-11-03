@@ -11,7 +11,7 @@ var crypto = require('crypto');
 var express = require('express');
 var http = require('http');
 var path = require('path');
-var ejsEngine = require('ejs-locals');
+var ejs = require('ejs');
 var bodyParser = require('body-parser');
 var session = require('express-session')
 var methodOverride = require('method-override');
@@ -25,13 +25,25 @@ var dustHelpers = require('dustjs-helpers');
 var cons = require('consolidate');
 const hbs = require('hbs')
 
+// Renders an EJS view, then wraps it in the layout set via layout('name') in the view.
+function renderEjsWithLayout(file, options, callback) {
+  var layoutName;
+  var locals = Object.assign({}, options, { layout: function (name) { layoutName = name; } });
+  ejs.renderFile(file, locals, function (err, body) {
+    if (err || !layoutName) return callback(err, body);
+    var layoutFile = path.resolve(path.dirname(file), layoutName);
+    if (!path.extname(layoutFile)) layoutFile += '.ejs';
+    renderEjsWithLayout(layoutFile, Object.assign({}, options, { body: body }), callback);
+  });
+}
+
 var app = express();
 var routes = require('./routes');
 var routesUsers = require('./routes/users.js')
 
 // all environments
 app.set('port', process.env.PORT || 3001);
-app.engine('ejs', ejsEngine);
+app.engine('ejs', renderEjsWithLayout);
 app.engine('dust', cons.dust);
 app.engine('hbs', hbs.__express);
 cons.dust.helpers = dustHelpers;
