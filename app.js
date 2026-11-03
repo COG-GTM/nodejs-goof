@@ -18,7 +18,8 @@ var methodOverride = require('method-override');
 var logger = require('morgan');
 var errorHandler = require('errorhandler');
 var optional = require('optional');
-var marked = require('marked');
+var { marked } = require('marked');
+var sanitizeHtml = require('sanitize-html');
 var fileUpload = require('express-fileupload');
 var dust = require('dustjs-linkedin');
 var dustHelpers = require('dustjs-helpers');
@@ -71,9 +72,15 @@ app.use('/users', routesUsers)
 // Static
 app.use(st({ path: './public', url: '/public' }));
 
-// Add the option to output (sanitized!) markdown
-marked.setOptions({ sanitize: true });
-app.locals.marked = marked;
+// Render markdown, then sanitize the resulting HTML before it is output raw
+app.locals.marked = function (src) {
+  return sanitizeHtml(marked.parse(String(src)), {
+    allowedTags: sanitizeHtml.defaults.allowedTags,
+    allowedAttributes: { a: ['href', 'title'] },
+    allowedSchemes: ['http', 'https', 'mailto'],
+    allowProtocolRelative: false,
+  });
+};
 
 // development only
 if (app.get('env') == 'development') {
