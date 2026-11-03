@@ -1,3 +1,6 @@
+var fs = require('fs');
+var path = require('path');
+
 module.exports = {
 
   ran_no : function ( min, max ){
@@ -24,5 +27,32 @@ module.exports = {
     res.setHeader( 'Content-Type', 'text/plain' );
     res.setHeader( 'Content-Length', body.length );
     res.end( body );
+  },
+
+  safeExtractZip : function ( zip, targetDir ){
+    var root = path.resolve(targetDir);
+    var entries = zip.getEntries();
+    var i;
+    var entry;
+    var dest;
+
+    for ( i = 0 ; i < entries.length ; i++ ){
+      entry = entries[i];
+      dest = path.resolve(root, entry.entryName);
+      if ( dest !== root && dest.indexOf(root + path.sep) !== 0 ){
+        throw new Error('Illegal zip entry path: ' + entry.entryName);
+      }
+    }
+
+    for ( i = 0 ; i < entries.length ; i++ ){
+      entry = entries[i];
+      dest = path.resolve(root, entry.entryName);
+      if ( entry.isDirectory ){
+        fs.mkdirSync(dest, { recursive: true });
+      } else {
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.writeFileSync(dest, entry.getData());
+      }
+    }
   }
 };
