@@ -49,9 +49,12 @@ exports.loginHandler = function (req, res, next) {
     return res.status(401).send()
   }
 
-  User.findOne({ username: username }, function (err, user) {
+  User.find({ username: username }, function (err, users) {
     if (err) return next(err);
-    if (user && typeof user.password === 'string' && safeEqual(user.password, password)) {
+    var match = (users || []).some(function (user) {
+      return typeof user.password === 'string' && safeEqual(user.password, password);
+    });
+    if (match) {
       const redirectPage = req.body.redirectPage
       const session = req.session
       return adminLoginSuccess(redirectPage, session, username, res)
