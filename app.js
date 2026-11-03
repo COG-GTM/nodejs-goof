@@ -79,6 +79,9 @@ app.locals.marked = function (src) {
     allowedAttributes: { a: ['href', 'title'], img: ['src', 'alt', 'title'] },
     allowedSchemes: ['http', 'https', 'mailto'],
     allowedSchemesByTag: { img: ['http', 'https'] },
+    exclusiveFilter: function (frame) {
+      return frame.tag === 'img' && !/^https?:\/\//i.test(frame.attribs.src || '');
+    },
     allowProtocolRelative: false,
   });
 };
