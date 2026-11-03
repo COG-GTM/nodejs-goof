@@ -49,7 +49,7 @@ exports.loginHandler = function (req, res, next) {
     return res.status(401).send()
   }
 
-  User.find({ username: username }, function (err, users) {
+  User.find({ username: { $eq: username } }, function (err, users) {
     if (err) return next(err);
     var match = (users || []).some(function (user) {
       return typeof user.password === 'string' && safeEqual(user.password, password);
