@@ -69,6 +69,10 @@ app.delete('/chat', routes.chat.delete);
 app.use('/users', routesUsers)
 
 // Static
+app.get('/public', function (req, res, next) {
+  if (req.path !== '/public') return next();
+  res.redirect(301, '/public/');
+});
 app.use(st({ path: './public', url: '/public' }));
 
 // Add the option to output (sanitized!) markdown
