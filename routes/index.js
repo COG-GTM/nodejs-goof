@@ -38,7 +38,7 @@ exports.loginHandler = function (req, res, next) {
   if (validator.isEmail(req.body.username)) {
     User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
       if (users.length > 0) {
-        const redirectPage = req.body.redirectPage
+        const redirectPage = safeRedirectPage(req.body.redirectPage)
         const session = req.session
         const username = req.body.username
         return adminLoginSuccess(redirectPage, session, username, res)
@@ -50,6 +50,13 @@ exports.loginHandler = function (req, res, next) {
     return res.status(401).send()
   }
 };
+
+function safeRedirectPage(redirectPage) {
+  if (typeof redirectPage !== 'string') return '';
+  if (!redirectPage.startsWith('/') || redirectPage.startsWith('//') || redirectPage.startsWith('/\\')) return '';
+  if (/[\x00-\x1f\\]/.test(redirectPage)) return '';
+  return redirectPage;
+}
 
 function adminLoginSuccess(redirectPage, session, username, res) {
   session.loggedIn = 1
@@ -68,7 +75,7 @@ exports.login = function (req, res, next) {
   return res.render('admin', {
     title: 'Admin Access',
     granted: false,
-    redirectPage: req.query.redirectPage
+    redirectPage: safeRedirectPage(req.query.redirectPage)
   });
 };
 
