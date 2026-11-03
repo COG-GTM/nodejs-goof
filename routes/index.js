@@ -19,6 +19,8 @@ var fs = require('fs');
 // prototype-pollution
 var _ = require('lodash');
 
+var LOCALE_PATTERN = /^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i;
+
 exports.index = function (req, res, next) {
   Todo.
     find({}).
@@ -275,9 +277,11 @@ exports.import = function (req, res, next) {
     var item = what;
     if (!isBlank(what)) {
       if (!isBlank(when) && !isBlank(locale) && !isBlank(format)) {
-        console.log('setting locale ' + parts[1]);
-        moment.locale(locale);
         var d = moment(when);
+        if (LOCALE_PATTERN.test(locale.trim())) {
+          d.locale(locale.trim());
+        }
+        console.log('setting locale ' + locale);
         console.log('formatting ' + d);
         item += ' [' + d.format(format) + ']';
       }
