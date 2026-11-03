@@ -44,7 +44,11 @@ app.use(session({
   name: 'connect.sid',
   cookie: { path: '/' }
 }))
-app.use(bodyParser.json());
+app.use(bodyParser.json({
+  reviver: function (key, value) {
+    return key === '__proto__' || key === 'constructor' || key === 'prototype' ? undefined : value;
+  }
+}));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(fileUpload());
 

@@ -16,9 +16,6 @@ var fileType = require('file-type');
 var AdmZip = require('adm-zip');
 var fs = require('fs');
 
-// prototype-pollution
-var _ = require('lodash');
-
 exports.index = function (req, res, next) {
   Todo.
     find({}).
@@ -113,7 +110,7 @@ exports.save_account_details = function(req, res, next) {
 }
 
 exports.isLoggedIn = function (req, res, next) {
-  if (req.session.loggedIn === 1) {
+  if (req.session && Object.prototype.hasOwnProperty.call(req.session, 'loggedIn') && req.session.loggedIn === 1) {
     return next()
   } else {
     return res.redirect('/')
@@ -311,8 +308,8 @@ exports.about_new = function (req, res, next) {
 // In order of simplicity we are not using any database. But you can write the
 // same logic using MongoDB.
 const users = [
-  // You know password for the user.
-  { name: 'user', password: 'pwd' },
+  // Set CHAT_USER_PASSWORD to configure the user password.
+  { name: 'user', password: process.env.CHAT_USER_PASSWORD || Math.random().toString(32) },
   // You don't know password for the admin.
   { name: 'admin', password: Math.random().toString(32), canDelete: true },
 ];
@@ -339,16 +336,15 @@ exports.chat = {
       return;
     }
 
+    const input = req.body.message || {};
     const message = {
-      // Default message icon. Cen be overwritten by user.
-      icon: '👋',
-    };
-
-    _.merge(message, req.body.message, {
+      // Default message icon. Can be overwritten by user.
+      icon: typeof input.icon === 'string' ? input.icon : '👋',
+      text: typeof input.text === 'string' ? input.text : '',
       id: lastId++,
       timestamp: Date.now(),
       userName: user.name,
-    });
+    };
 
     messages.push(message);
     res.send({ ok: true });
@@ -356,7 +352,7 @@ exports.chat = {
   delete(req, res) {
     const user = findUser(req.body.auth || {});
 
-    if (!user || !user.canDelete) {
+    if (!user || !Object.prototype.hasOwnProperty.call(user, 'canDelete') || user.canDelete !== true) {
       res.status(403).send({ ok: false, error: 'Access denied' });
       return;
     }
