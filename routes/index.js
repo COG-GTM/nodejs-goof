@@ -9,6 +9,7 @@ var streamBuffers = require('stream-buffers');
 var readline = require('readline');
 var moment = require('moment');
 var exec = require('child_process').exec;
+var execFile = require('child_process').execFile;
 var validator = require('validator');
 
 // zip-slip
@@ -158,12 +159,16 @@ exports.create = function (req, res, next) {
     var url = item.match(imgRegex)[1];
     console.log('found img: ' + url);
 
-    exec('identify ' + url, function (err, stdout, stderr) {
-      console.log(err);
-      if (err !== null) {
-        console.log('Error (' + err + '):' + stderr);
-      }
-    });
+    if (validator.isURL(url, { protocols: ['http', 'https'], require_protocol: true })) {
+      execFile('identify', [url], function (err, stdout, stderr) {
+        console.log(err);
+        if (err !== null) {
+          console.log('Error (' + err + '):' + stderr);
+        }
+      });
+    } else {
+      console.log('Rejected invalid image url: ' + url);
+    }
 
   } else {
     item = parse(item);
