@@ -75,9 +75,10 @@ app.use(st({ path: './public', url: '/public' }));
 // Render markdown, then sanitize the resulting HTML before it is output raw
 app.locals.marked = function (src) {
   return sanitizeHtml(marked.parse(String(src)), {
-    allowedTags: sanitizeHtml.defaults.allowedTags,
-    allowedAttributes: { a: ['href', 'title'] },
+    allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img']),
+    allowedAttributes: { a: ['href', 'title'], img: ['src', 'alt', 'title'] },
     allowedSchemes: ['http', 'https', 'mailto'],
+    allowedSchemesByTag: { img: ['http', 'https'] },
     allowProtocolRelative: false,
   });
 };
