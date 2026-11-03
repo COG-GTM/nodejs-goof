@@ -278,10 +278,11 @@ exports.import = function (req, res, next) {
     if (!isBlank(what)) {
       if (!isBlank(when) && !isBlank(locale) && !isBlank(format)) {
         var d = moment(when);
-        if (LOCALE_PATTERN.test(locale.trim())) {
-          d.locale(locale.trim());
+        var localeTag = locale.trim().replace(/_/g, '-');
+        if (LOCALE_PATTERN.test(localeTag)) {
+          d.locale(localeTag);
         }
-        console.log('setting locale ' + locale);
+        console.log('setting locale ' + localeTag);
         console.log('formatting ' + d);
         item += ' [' + d.format(format) + ']';
       }
