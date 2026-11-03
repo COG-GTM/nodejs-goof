@@ -18,7 +18,7 @@
       "required": true
     },
     "ADMIN_PASSWORD": {
-      "description": "Initial password for the admin@snyk.io user (stored hashed). If unset, no admin user is created.",
+      "description": "Password for the admin user (stored hashed). Applied on every startup, so changing it rotates the admin password. If unset, no admin user is created.",
       "required": false
     }
   },

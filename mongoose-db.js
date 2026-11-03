@@ -1,6 +1,7 @@
 var mongoose = require('mongoose');
 var cfenv = require("cfenv");
 var passwordHash = require('./password-hash');
+var validator = require('validator');
 var Schema = mongoose.Schema;
 
 var Todo = new Schema({
@@ -16,7 +17,7 @@ var User = new Schema({
 });
 
 User.pre('save', function (next) {
-  if (this.isModified('password') && !passwordHash.isHashed(this.password)) {
+  if (this.isModified('password')) {
     var user = this;
     passwordHash.hashPassword(this.password, function (err, hashedPassword) {
       if (err) return next(err);
@@ -64,6 +65,8 @@ var adminPassword = process.env.ADMIN_PASSWORD;
 
 if (!adminPassword) {
   console.log('ADMIN_PASSWORD not set; skipping admin user creation');
+} else if (!validator.isEmail(adminUsername)) {
+  console.log('ADMIN_USERNAME must be an email address; skipping admin user creation');
 } else {
   User.findOne({ username: adminUsername }, function (err, user) {
     if (err) {
@@ -77,13 +80,21 @@ if (!adminPassword) {
           console.log('error saving admin user');
         }
       });
-    } else if (!passwordHash.isHashed(user.password)) {
-      user.password = adminPassword;
-      user.markModified('password');
-      user.save(function (err) {
+    } else {
+      passwordHash.verifyPassword(adminPassword, user.password, function (err, verified) {
         if (err) {
-          console.log('error saving admin user');
+          console.log(err);
+          return;
         }
+        if (verified) return;
+
+        user.password = adminPassword;
+        user.markModified('password');
+        user.save(function (err) {
+          if (err) {
+            console.log('error saving admin user');
+          }
+        });
       });
     }
   });
