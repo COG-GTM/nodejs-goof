@@ -275,11 +275,15 @@ exports.import = function (req, res, next) {
     var item = what;
     if (!isBlank(what)) {
       if (!isBlank(when) && !isBlank(locale) && !isBlank(format)) {
-        console.log('setting locale ' + parts[1]);
-        moment.locale(locale);
-        var d = moment(when);
-        console.log('formatting ' + d);
-        item += ' [' + d.format(format) + ']';
+        var safeLocale = utils.safeMomentLocale(locale);
+        if (safeLocale) {
+          console.log('setting locale ' + safeLocale);
+          var d = moment(when).locale(safeLocale);
+          console.log('formatting ' + d);
+          item += ' [' + d.format(format) + ']';
+        } else {
+          console.log('rejected locale ' + JSON.stringify(locale));
+        }
       }
 
       new Todo({
