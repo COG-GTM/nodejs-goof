@@ -13,7 +13,7 @@ router.get('/', async (req, res, next) => {
   // hard-coded getting account id of 1
   // as a rpelacement to getting this from the session and such
   // (just imagine that we implemented auth, etc)
-  const results = await repo.find({ id: 1 })
+  const results = await repo.find({ where: { id: 1 } })
 
   // Log Object's where property for debug reasons:
   console.log('The Object.where property is set to: ', {}.where)
@@ -28,10 +28,12 @@ router.post('/', async (req, res, next) => {
     const mongoConnection = typeorm.getConnection('mysql')
     const repo = mongoConnection.getRepository("Users")
 
-    const user = {}
-    user.name = req.body.name
-    user.address = req.body.address
-    user.role = req.body.role
+    const { name, address, role } = req.body
+    if (![name, address, role].every((field) => typeof field === 'string')) {
+      return res.status(400).json({ error: 'name, address and role must be strings' })
+    }
+
+    const user = { name, address, role }
 
     const savedRecord = await repo.save(user)
     console.log("Post has been saved: ", savedRecord)
