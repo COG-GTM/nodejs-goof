@@ -50,7 +50,8 @@ module.exports = {
     // so a corrupt archive never overwrites existing output
     fs.mkdirSync( path.dirname( root ), { recursive : true });
     var staging = fs.mkdtempSync( root + '-staging-' );
-    var written = [];
+    // keyed by normalized path so duplicate entries publish once (last one wins)
+    var written = Object.create( null );
 
     try {
       entries.forEach( function ( entry ){
@@ -58,7 +59,7 @@ module.exports = {
         var tmp = path.join( staging, rel );
         if( entry.isDirectory ){
           fs.mkdirSync( tmp, { recursive : true });
-          written.push({ rel : rel, isDirectory : true });
+          written[ rel ] = written[ rel ] || { rel : rel, isDirectory : true };
           return;
         }
 
@@ -74,10 +75,11 @@ module.exports = {
         }
         fs.mkdirSync( path.dirname( tmp ), { recursive : true });
         fs.writeFileSync( tmp, data );
-        written.push({ rel : rel, isDirectory : false });
+        written[ rel ] = { rel : rel, isDirectory : false };
       });
 
-      written.forEach( function ( item ){
+      Object.keys( written ).forEach( function ( key ){
+        var item = written[ key ];
         var dest = path.join( root, item.rel );
         if( item.isDirectory ){
           fs.mkdirSync( dest, { recursive : true });
