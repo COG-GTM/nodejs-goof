@@ -217,6 +217,8 @@ exports.edit = function (req, res, next) {
 
 exports.update = function (req, res, next) {
   Todo.findById(req.params.id, function (err, todo) {
+    if (err) return next(err);
+    if (!todo) return res.status(404).send('Todo not found');
 
     todo.content = req.body.content;
     todo.updated_at = Date.now();
