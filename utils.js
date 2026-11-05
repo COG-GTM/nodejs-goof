@@ -48,7 +48,9 @@ module.exports = {
 
     entries.forEach( function ( entry ){
       var dest = path.resolve( root, entry.entryName );
-      if( dest.indexOf( root + path.sep ) !== 0 ){
+      // a "./" directory entry resolves to root itself; only directories may do that
+      var isRootDir = dest === root && entry.isDirectory;
+      if( !isRootDir && dest.indexOf( root + path.sep ) !== 0 ){
         throw zipError( 'ZIP_ENTRY_OUTSIDE_TARGET', 'Illegal zip entry path: ' + entry.entryName );
       }
     });
