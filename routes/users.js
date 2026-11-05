@@ -5,6 +5,18 @@ var typeorm = require("typeorm");
 var router = express.Router()
 module.exports = router
 
+// Role is never taken from the request body.
+var DEFAULT_ROLE = 'user'
+
+function requireAuthentication(req, res, next) {
+  if (req.session && req.session.loggedIn === 1) {
+    return next()
+  }
+  return res.status(401).json({ error: 'authentication required' })
+}
+
+router.use(requireAuthentication)
+
 router.get('/', async (req, res, next) => {
 
   const mongoConnection = typeorm.getConnection('mysql')
@@ -31,7 +43,7 @@ router.post('/', async (req, res, next) => {
     const user = {}
     user.name = req.body.name
     user.address = req.body.address
-    user.role = req.body.role
+    user.role = DEFAULT_ROLE
 
     const savedRecord = await repo.save(user)
     console.log("Post has been saved: ", savedRecord)
