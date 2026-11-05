@@ -46,25 +46,48 @@ module.exports = {
       }
     });
 
-    entries.forEach( function ( entry ){
-      var dest = path.resolve( root, entry.entryName );
-      if( entry.isDirectory ){
-        fs.mkdirSync( dest, { recursive : true });
-        return;
-      }
+    // extract into a sibling staging dir and publish only once every entry decoded,
+    // so a corrupt archive never overwrites existing output
+    fs.mkdirSync( path.dirname( root ), { recursive : true });
+    var staging = fs.mkdtempSync( root + '-staging-' );
+    var written = [];
 
-      var data;
-      try {
-        data = entry.getData();
-      } catch( e ){
-        data = null;
-      }
-      // adm-zip returns an error string instead of a Buffer on bad CRC / unknown method
-      if( !Buffer.isBuffer( data )){
-        throw zipError( 'ZIP_INVALID_ARCHIVE', 'Corrupt zip entry: ' + entry.entryName );
-      }
-      fs.mkdirSync( path.dirname( dest ), { recursive : true });
-      fs.writeFileSync( dest, data );
-    });
+    try {
+      entries.forEach( function ( entry ){
+        var rel = path.relative( root, path.resolve( root, entry.entryName ));
+        var tmp = path.join( staging, rel );
+        if( entry.isDirectory ){
+          fs.mkdirSync( tmp, { recursive : true });
+          written.push({ rel : rel, isDirectory : true });
+          return;
+        }
+
+        var data;
+        try {
+          data = entry.getData();
+        } catch( e ){
+          data = null;
+        }
+        // adm-zip returns an error string instead of a Buffer on bad CRC / unknown method
+        if( !Buffer.isBuffer( data )){
+          throw zipError( 'ZIP_INVALID_ARCHIVE', 'Corrupt zip entry: ' + entry.entryName );
+        }
+        fs.mkdirSync( path.dirname( tmp ), { recursive : true });
+        fs.writeFileSync( tmp, data );
+        written.push({ rel : rel, isDirectory : false });
+      });
+
+      written.forEach( function ( item ){
+        var dest = path.join( root, item.rel );
+        if( item.isDirectory ){
+          fs.mkdirSync( dest, { recursive : true });
+          return;
+        }
+        fs.mkdirSync( path.dirname( dest ), { recursive : true });
+        fs.renameSync( path.join( staging, item.rel ), dest );
+      });
+    } finally {
+      fs.rmSync( staging, { recursive : true, force : true });
+    }
   }
 };
