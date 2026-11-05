@@ -91,6 +91,19 @@ body {
   height: 18px;
 }
 
+.del-form {
+  display: inline;
+  float: right;
+  margin: 0;
+}
+
+button.del-btn, button.del-btn-edit {
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  background-color: transparent;
+}
+
 /* line 28, ../sass/screen.sass */
 .del-btn-edit {
   width: 20px;

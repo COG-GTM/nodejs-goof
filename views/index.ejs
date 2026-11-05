@@ -9,16 +9,28 @@ strong {font-weight: bold}
 </div>
 
 <div id="list">
+<% if( currentUser ){ %>
   <form action="/create" method="post" accept-charset="utf-8">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
     <div class="item-new">
       <input class="input" type="text" name="content" />
     </div>
   </form>
+<% }else{ %>
+  <div class="item-new"><a href="/login?redirectPage=/">Log in</a> to add or change todos.</div>
+<% } %>
 
 <% todos.forEach( function ( todo ){ %>
   <div class="item">
+  <% if( currentUser && todo.owner === currentUser ){ %>
     <a class="update-link" href="/edit/<%= todo._id %>" title="Update this todo item"><%- marked(new String(todo.content)) %></a>
-    <a class="del-btn" href="/destroy/<%= todo._id %>" title="Delete this todo item">Delete</a>
+    <form class="del-form" action="/destroy/<%= todo._id %>" method="post">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <button class="del-btn" type="submit" title="Delete this todo item">Delete</button>
+    </form>
+  <% }else{ %>
+    <span class="update-link"><%- marked(new String(todo.content)) %></span>
+  <% } %>
   </div>
 <% }); %>
 </div>
