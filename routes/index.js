@@ -252,12 +252,18 @@ exports.import = function (req, res, next) {
     importedFileType = { ext: "txt", mime: "text/plain" };
   }
   if (importedFileType["mime"] === zipFileExt["mime"]) {
-    var zip = AdmZip(importFile.data);
+    var zip;
+    try {
+      zip = AdmZip(importFile.data);
+    } catch (err) {
+      res.status(400).send('Invalid archive.');
+      return;
+    }
     var extracted_path = "/tmp/extracted_files";
     try {
       utils.safeExtractZip(zip, extracted_path);
     } catch (err) {
-      if (err.code === 'ZIP_ENTRY_OUTSIDE_TARGET') {
+      if (err.code === 'ZIP_ENTRY_OUTSIDE_TARGET' || err.code === 'ZIP_INVALID_ARCHIVE') {
         res.status(400).send('Invalid archive.');
         return;
       }
