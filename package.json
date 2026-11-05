@@ -12,7 +12,8 @@
     "start": "NODE_OPTIONS=--openssl-legacy-provider node app.js",
     "build": "browserify -r jquery > public/js/bundle.js",
     "cleanup": "mongo express-todo --eval 'db.todos.remove({});'",
-    "test": "snyk test"
+    "test": "snyk test",
+    "test:unit": "node --test tests/import-locale.test.js"
   },
   "dependencies": {
     "adm-zip": "0.4.7",
@@ -34,7 +35,7 @@
     "lodash": "4.17.4",
     "marked": "0.3.5",
     "method-override": "latest",
-    "moment": "2.15.1",
+    "moment": "2.29.4",
     "mongodb": "^3.5.9",
     "mongoose": "4.2.4",
     "morgan": "latest",
