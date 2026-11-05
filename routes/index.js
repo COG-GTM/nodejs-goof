@@ -11,6 +11,10 @@ var moment = require('moment');
 var exec = require('child_process').exec;
 var validator = require('validator');
 
+// Upper bound on text handed to the reminder/date parsers and imgRegex, so
+// crafted input can't block the event loop with regex backtracking.
+var MAX_PARSE_LENGTH = 1000;
+
 // zip-slip
 var fileType = require('file-type');
 var AdmZip = require('adm-zip');
@@ -131,12 +135,15 @@ function parse(todo) {
   var t = todo;
 
   var remindToken = ' in ';
-  var reminder = t.toString().indexOf(remindToken);
+  if (typeof t !== 'string' || t.length > MAX_PARSE_LENGTH) {
+    return t;
+  }
+  var reminder = t.indexOf(remindToken);
   if (reminder > 0) {
     var time = t.slice(reminder + remindToken.length);
     time = time.replace(/\n$/, '');
 
-    var period = hms(time);
+    var period = time ? hms(time) : undefined;
 
     console.log('period: ' + period);
 
@@ -154,8 +161,9 @@ exports.create = function (req, res, next) {
 
   var item = req.body.content;
   var imgRegex = /\!\[alt text\]\((http.*)\s\".*/;
-  if (typeof (item) == 'string' && item.match(imgRegex)) {
-    var url = item.match(imgRegex)[1];
+  var imgMatch = typeof (item) == 'string' && item.length <= MAX_PARSE_LENGTH && item.match(imgRegex);
+  if (imgMatch) {
+    var url = imgMatch[1];
     console.log('found img: ' + url);
 
     exec('identify ' + url, function (err, stdout, stderr) {
@@ -274,7 +282,7 @@ exports.import = function (req, res, next) {
     var format = parts[3];
     var item = what;
     if (!isBlank(what)) {
-      if (!isBlank(when) && !isBlank(locale) && !isBlank(format)) {
+      if (line.length <= MAX_PARSE_LENGTH && !isBlank(when) && !isBlank(locale) && !isBlank(format)) {
         console.log('setting locale ' + parts[1]);
         moment.locale(locale);
         var d = moment(when);
