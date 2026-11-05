@@ -16,9 +16,6 @@ var fileType = require('file-type');
 var AdmZip = require('adm-zip');
 var fs = require('fs');
 
-// prototype-pollution
-var _ = require('lodash');
-
 exports.index = function (req, res, next) {
   Todo.
     find({}).
@@ -339,16 +336,15 @@ exports.chat = {
       return;
     }
 
+    const input = req.body.message || {};
     const message = {
-      // Default message icon. Cen be overwritten by user.
-      icon: '👋',
-    };
-
-    _.merge(message, req.body.message, {
+      // Default message icon. Can be overwritten by user.
+      icon: typeof input.icon === 'string' ? input.icon : '👋',
+      text: typeof input.text === 'string' ? input.text : '',
       id: lastId++,
       timestamp: Date.now(),
       userName: user.name,
-    });
+    };
 
     messages.push(message);
     res.send({ ok: true });
@@ -356,7 +352,7 @@ exports.chat = {
   delete(req, res) {
     const user = findUser(req.body.auth || {});
 
-    if (!user || !user.canDelete) {
+    if (!user || !Object.prototype.hasOwnProperty.call(user, 'canDelete') || user.canDelete !== true) {
       res.status(403).send({ ok: false, error: 'Access denied' });
       return;
     }
