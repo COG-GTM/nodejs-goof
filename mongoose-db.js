@@ -1,7 +1,6 @@
 var mongoose = require('mongoose');
 var cfenv = require("cfenv");
 var passwordHash = require('./password-hash');
-var validator = require('validator');
 var Schema = mongoose.Schema;
 
 var Todo = new Schema({
@@ -60,16 +59,12 @@ console.log("Using Mongo URI " + mongoUri);
 mongoose.connect(mongoUri);
 
 User = mongoose.model('User');
-var adminUsername = process.env.ADMIN_USERNAME || 'admin@snyk.io';
+var adminUsername = 'admin@snyk.io';
 var adminPassword = process.env.ADMIN_PASSWORD;
 
 function seedAdmin() {
   if (!adminPassword) {
     console.log('ADMIN_PASSWORD not set; skipping admin user creation');
-    return;
-  }
-  if (!validator.isEmail(adminUsername)) {
-    console.log('ADMIN_USERNAME must be an email address; skipping admin user creation');
     return;
   }
 
