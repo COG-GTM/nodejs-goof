@@ -122,7 +122,8 @@ function currentUsername(req) {
 exports.verifyCsrf = function (req, res, next) {
   var expected = req.session && req.session.csrfToken;
   var token = (req.body && req.body._csrf) || req.get('x-csrf-token');
-  if (typeof expected === 'string' && typeof token === 'string' && token.length === expected.length &&
+  if (typeof expected === 'string' && typeof token === 'string' &&
+      Buffer.byteLength(token) === Buffer.byteLength(expected) &&
       crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected))) {
     return next();
   }
@@ -262,11 +263,12 @@ exports.update = function (req, res, next) {
 
 // ** express turns the cookie key to lowercase **
 exports.current_user = function (req, res, next) {
-  if (!req.session.csrfToken) {
+  var username = currentUsername(req);
+  if (username && !req.session.csrfToken) {
     req.session.csrfToken = crypto.randomBytes(32).toString('hex');
   }
-  res.locals.csrfToken = req.session.csrfToken;
-  res.locals.currentUser = currentUsername(req);
+  res.locals.currentUser = username;
+  res.locals.csrfToken = username ? req.session.csrfToken : '';
   next();
 };
 

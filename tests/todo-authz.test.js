@@ -49,6 +49,20 @@ test('verifyCsrf rejects missing and wrong tokens', async () => {
   assert.strictEqual((await call(routes.verifyCsrf, { session: {}, body: { _csrf: 'x' } })).status, 403);
 });
 
+test('verifyCsrf rejects same-length non-ASCII tokens with 403', async () => {
+  const r = await call(routes.verifyCsrf, { session: session('alice@example.com'), body: { _csrf: '\u00e9'.repeat(64) } });
+  assert.strictEqual(r.status, 403);
+});
+
+test('current_user does not create a CSRF token for anonymous sessions', async () => {
+  const anon = {};
+  assert.strictEqual((await call(routes.current_user, { session: anon })).next, true);
+  assert.strictEqual(anon.csrfToken, undefined);
+  const alice = { loggedIn: 1, username: 'alice@example.com' };
+  await call(routes.current_user, { session: alice });
+  assert.match(alice.csrfToken, /^[0-9a-f]{64}$/);
+});
+
 test('verifyCsrf accepts the session token', async () => {
   const r = await call(routes.verifyCsrf, { session: session('alice@example.com'), body: { _csrf: 'a'.repeat(64) } });
   assert.strictEqual(r.next, true);
