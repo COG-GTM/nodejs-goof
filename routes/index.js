@@ -234,6 +234,12 @@ exports.current_user = function (req, res, next) {
   next();
 };
 
+var LOCALE_PATTERN = /^[a-z]{2,3}(-[a-z0-9]{2,4})?$/i;
+
+function isValidLocale(locale) {
+  return typeof locale === 'string' && LOCALE_PATTERN.test(locale.trim());
+}
+
 function isBlank(str) {
   return (!str || /^\s*$/.test(str));
 }
@@ -274,9 +280,9 @@ exports.import = function (req, res, next) {
     var format = parts[3];
     var item = what;
     if (!isBlank(what)) {
-      if (!isBlank(when) && !isBlank(locale) && !isBlank(format)) {
+      if (!isBlank(when) && isValidLocale(locale) && !isBlank(format)) {
         console.log('setting locale ' + parts[1]);
-        moment.locale(locale);
+        moment.locale(locale.trim());
         var d = moment(when);
         console.log('formatting ' + d);
         item += ' [' + d.format(format) + ']';
