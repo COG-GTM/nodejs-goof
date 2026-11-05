@@ -63,11 +63,16 @@ User = mongoose.model('User');
 var adminUsername = process.env.ADMIN_USERNAME || 'admin@snyk.io';
 var adminPassword = process.env.ADMIN_PASSWORD;
 
-if (!adminPassword) {
-  console.log('ADMIN_PASSWORD not set; skipping admin user creation');
-} else if (!validator.isEmail(adminUsername)) {
-  console.log('ADMIN_USERNAME must be an email address; skipping admin user creation');
-} else {
+function seedAdmin() {
+  if (!adminPassword) {
+    console.log('ADMIN_PASSWORD not set; skipping admin user creation');
+    return;
+  }
+  if (!validator.isEmail(adminUsername)) {
+    console.log('ADMIN_USERNAME must be an email address; skipping admin user creation');
+    return;
+  }
+
   User.findOne({ username: adminUsername }, function (err, user) {
     if (err) {
       console.log(err);
@@ -99,3 +104,19 @@ if (!adminPassword) {
     }
   });
 }
+
+// Plaintext passwords left by older versions (e.g. the previously seeded admin
+// password) can no longer be used to log in; remove them from the database.
+User.update(
+  { password: { $exists: true, $not: /^scrypt\$/ } },
+  { $unset: { password: 1 } },
+  { multi: true },
+  function (err, result) {
+    if (err) {
+      console.log('error removing plaintext passwords');
+    } else if (result && result.nModified) {
+      console.log('removed ' + result.nModified + ' plaintext password(s)');
+    }
+    seedAdmin();
+  }
+);

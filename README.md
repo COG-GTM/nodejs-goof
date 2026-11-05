@@ -20,7 +20,7 @@ npm start
 ```
 This will run Goof locally, using a local mongo on the default port and listening on port 3001 (http://localhost:3001)
 
-The admin user is only created when `ADMIN_PASSWORD` is set. Start the app with `ADMIN_PASSWORD=... npm start` or run Docker Compose with `ADMIN_PASSWORD=... docker-compose up`. Passwords are stored as scrypt hashes, and changing `ADMIN_PASSWORD` rotates the password on the next startup.
+The admin user is only created when `ADMIN_PASSWORD` is set. Start the app with `ADMIN_PASSWORD=... npm start` or run Docker Compose with `ADMIN_PASSWORD=... docker-compose up`. Passwords are stored as scrypt hashes, and changing `ADMIN_PASSWORD` rotates the password on the next startup. Plaintext passwords stored by older versions (including the previously published admin password) are removed from the database on startup.
 
 Note: You *have* to use an old version of MongoDB version due to some of these old libraries' database server APIs. MongoDB 3 is known to work ok.
 
