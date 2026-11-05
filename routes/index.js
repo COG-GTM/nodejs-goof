@@ -257,8 +257,11 @@ exports.import = function (req, res, next) {
     try {
       utils.safeExtractZip(zip, extracted_path);
     } catch (err) {
-      res.status(400).send('Invalid archive.');
-      return;
+      if (err.code === 'ZIP_ENTRY_OUTSIDE_TARGET') {
+        res.status(400).send('Invalid archive.');
+        return;
+      }
+      return next(err);
     }
     data = "No backup.txt file found";
     fs.readFile('backup.txt', 'ascii', function (err, data) {
