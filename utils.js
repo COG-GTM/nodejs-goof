@@ -33,23 +33,39 @@ module.exports = {
     var root    = path.resolve( targetDir );
     var entries = zip.getEntries();
 
-    entries.forEach( function ( entry ){
+    function zipError( code, message ){
+      var err  = new Error( message );
+      err.code = code;
+      return err;
+    }
+
+    var files = entries.map( function ( entry ){
       var dest = path.resolve( root, entry.entryName );
       if( dest.indexOf( root + path.sep ) !== 0 ){
-        var err  = new Error( 'Illegal zip entry path: ' + entry.entryName );
-        err.code = 'ZIP_ENTRY_OUTSIDE_TARGET';
-        throw err;
+        throw zipError( 'ZIP_ENTRY_OUTSIDE_TARGET', 'Illegal zip entry path: ' + entry.entryName );
       }
+      if( entry.isDirectory ) return { dest : dest };
+
+      var data;
+      try {
+        data = entry.getData();
+      } catch( e ){
+        data = null;
+      }
+      // adm-zip returns an error string instead of a Buffer on bad CRC / unknown method
+      if( !Buffer.isBuffer( data )){
+        throw zipError( 'ZIP_INVALID_ARCHIVE', 'Corrupt zip entry: ' + entry.entryName );
+      }
+      return { dest : dest, data : data };
     });
 
-    entries.forEach( function ( entry ){
-      var dest = path.resolve( root, entry.entryName );
-      if( entry.isDirectory ){
-        fs.mkdirSync( dest, { recursive : true });
+    files.forEach( function ( file ){
+      if( !file.data ){
+        fs.mkdirSync( file.dest, { recursive : true });
         return;
       }
-      fs.mkdirSync( path.dirname( dest ), { recursive : true });
-      fs.writeFileSync( dest, entry.getData());
+      fs.mkdirSync( path.dirname( file.dest ), { recursive : true });
+      fs.writeFileSync( file.dest, file.data );
     });
   }
 };
