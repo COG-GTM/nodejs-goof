@@ -30,13 +30,20 @@ module.exports = {
   },
 
   safeExtractZip : function ( zip, targetDir ){
-    var root    = path.resolve( targetDir );
-    var entries = zip.getEntries();
+    var root = path.resolve( targetDir );
 
     function zipError( code, message ){
       var err  = new Error( message );
       err.code = code;
       return err;
+    }
+
+    // adm-zip >= 0.5 reads the central directory lazily, so a corrupt archive throws here
+    var entries;
+    try {
+      entries = zip.getEntries();
+    } catch( e ){
+      throw zipError( 'ZIP_INVALID_ARCHIVE', 'Corrupt zip archive' );
     }
 
     entries.forEach( function ( entry ){
