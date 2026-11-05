@@ -1,4 +1,4 @@
-version: "2"
+version: "2.1"
 services:
   goof:
     build: .
@@ -16,8 +16,10 @@ services:
       - goof-mongo
       - good-mysql
     depends_on:
-      - goof-mongo
-      - good-mysql
+      goof-mongo:
+        condition: service_started
+      good-mysql:
+        condition: service_healthy
   goof-mongo:
     container_name: goof-mongo
     image: mongo:3
@@ -29,3 +31,8 @@ services:
       MYSQL_DATABASE: acme
       MYSQL_USER: ${MYSQL_USER:-goof}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in the environment or a .env file}
+    healthcheck:
+      test: ["CMD-SHELL", "mysql -h 127.0.0.1 -u\"$$MYSQL_USER\" -p\"$$MYSQL_PASSWORD\" -e 'SELECT 1' acme"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
