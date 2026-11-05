@@ -36,7 +36,9 @@ module.exports = {
     entries.forEach( function ( entry ){
       var dest = path.resolve( root, entry.entryName );
       if( dest.indexOf( root + path.sep ) !== 0 ){
-        throw new Error( 'Illegal zip entry path: ' + entry.entryName );
+        var err  = new Error( 'Illegal zip entry path: ' + entry.entryName );
+        err.code = 'ZIP_ENTRY_OUTSIDE_TARGET';
+        throw err;
       }
     });
 
