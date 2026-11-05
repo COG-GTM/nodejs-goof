@@ -39,12 +39,19 @@ module.exports = {
       return err;
     }
 
-    var files = entries.map( function ( entry ){
+    entries.forEach( function ( entry ){
       var dest = path.resolve( root, entry.entryName );
       if( dest.indexOf( root + path.sep ) !== 0 ){
         throw zipError( 'ZIP_ENTRY_OUTSIDE_TARGET', 'Illegal zip entry path: ' + entry.entryName );
       }
-      if( entry.isDirectory ) return { dest : dest };
+    });
+
+    entries.forEach( function ( entry ){
+      var dest = path.resolve( root, entry.entryName );
+      if( entry.isDirectory ){
+        fs.mkdirSync( dest, { recursive : true });
+        return;
+      }
 
       var data;
       try {
@@ -56,16 +63,8 @@ module.exports = {
       if( !Buffer.isBuffer( data )){
         throw zipError( 'ZIP_INVALID_ARCHIVE', 'Corrupt zip entry: ' + entry.entryName );
       }
-      return { dest : dest, data : data };
-    });
-
-    files.forEach( function ( file ){
-      if( !file.data ){
-        fs.mkdirSync( file.dest, { recursive : true });
-        return;
-      }
-      fs.mkdirSync( path.dirname( file.dest ), { recursive : true });
-      fs.writeFileSync( file.dest, file.data );
+      fs.mkdirSync( path.dirname( dest ), { recursive : true });
+      fs.writeFileSync( dest, data );
     });
   }
 };
