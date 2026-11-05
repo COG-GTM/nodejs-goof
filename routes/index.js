@@ -10,6 +10,7 @@ var readline = require('readline');
 var moment = require('moment');
 var exec = require('child_process').exec;
 var validator = require('validator');
+var crypto = require('crypto');
 
 // zip-slip
 var fileType = require('file-type');
@@ -53,6 +54,7 @@ exports.loginHandler = function (req, res, next) {
 
 function adminLoginSuccess(redirectPage, session, username, res) {
   session.loggedIn = 1
+  session.username = username
 
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
@@ -110,6 +112,29 @@ exports.save_account_details = function(req, res, next) {
     console.log('error in form details')
     return res.render('account.hbs')
   }
+}
+
+function currentUsername(req) {
+  var username = req.session && req.session.username;
+  return req.session && req.session.loggedIn === 1 && typeof username === 'string' && username ? username : null;
+}
+
+exports.verifyCsrf = function (req, res, next) {
+  var expected = req.session && req.session.csrfToken;
+  var token = (req.body && req.body._csrf) || req.get('x-csrf-token');
+  if (typeof expected === 'string' && typeof token === 'string' && token.length === expected.length &&
+      crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected))) {
+    return next();
+  }
+  return res.status(403).send('Invalid CSRF token');
+};
+
+function findOwnedTodo(req, callback) {
+  var owner = currentUsername(req);
+  if (!owner || !mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return callback(null, null);
+  }
+  Todo.findOne({ _id: req.params.id, owner: owner }, callback);
 }
 
 exports.isLoggedIn = function (req, res, next) {
@@ -172,6 +197,7 @@ exports.create = function (req, res, next) {
   new Todo({
     content: item,
     updated_at: Date.now(),
+    owner: currentUsername(req),
   }).save(function (err, todo, count) {
     if (err) return next(err);
 
@@ -188,35 +214,41 @@ exports.create = function (req, res, next) {
 };
 
 exports.destroy = function (req, res, next) {
-  Todo.findById(req.params.id, function (err, todo) {
+  findOwnedTodo(req, function (err, todo) {
+    if (err) return next(err);
+    if (!todo) return res.status(404).send('Not found');
 
-    try {
-      todo.remove(function (err, todo) {
-        if (err) return next(err);
-        res.redirect('/');
-      });
-    } catch (e) {
-    }
+    todo.remove(function (err, todo) {
+      if (err) return next(err);
+      res.redirect('/');
+    });
   });
 };
 
 exports.edit = function (req, res, next) {
-  Todo.
-    find({}).
-    sort('-updated_at').
-    exec(function (err, todos) {
-      if (err) return next(err);
+  findOwnedTodo(req, function (err, owned) {
+    if (err) return next(err);
+    if (!owned) return res.status(404).send('Not found');
 
-      res.render('edit', {
-        title: 'TODO',
-        todos: todos,
-        current: req.params.id
+    Todo.
+      find({}).
+      sort('-updated_at').
+      exec(function (err, todos) {
+        if (err) return next(err);
+
+        res.render('edit', {
+          title: 'TODO',
+          todos: todos,
+          current: req.params.id
+        });
       });
-    });
+  });
 };
 
 exports.update = function (req, res, next) {
-  Todo.findById(req.params.id, function (err, todo) {
+  findOwnedTodo(req, function (err, todo) {
+    if (err) return next(err);
+    if (!todo) return res.status(404).send('Not found');
 
     todo.content = req.body.content;
     todo.updated_at = Date.now();
@@ -230,7 +262,11 @@ exports.update = function (req, res, next) {
 
 // ** express turns the cookie key to lowercase **
 exports.current_user = function (req, res, next) {
-
+  if (!req.session.csrfToken) {
+    req.session.csrfToken = crypto.randomBytes(32).toString('hex');
+  }
+  res.locals.csrfToken = req.session.csrfToken;
+  res.locals.currentUser = currentUsername(req);
   next();
 };
 
@@ -285,6 +321,7 @@ exports.import = function (req, res, next) {
       new Todo({
         content: item,
         updated_at: Date.now(),
+        owner: currentUsername(req),
       }).save(function (err, todo, count) {
         if (err) return next(err);
         console.log('added ' + todo);

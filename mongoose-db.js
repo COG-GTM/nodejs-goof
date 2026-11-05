@@ -5,6 +5,7 @@ var Schema = mongoose.Schema;
 var Todo = new Schema({
   content: Buffer,
   updated_at: Date,
+  owner: String,
 });
 
 mongoose.model('Todo', Todo);
