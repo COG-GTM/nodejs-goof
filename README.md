@@ -30,9 +30,14 @@ docker run --rm -p 27017:27017 mongo:3
 
 ## Running with docker-compose
 ```bash
+export MYSQL_PASSWORD='<choose a strong password>'   # or put it in a .env file
 docker-compose up --build
 docker-compose down
 ```
+
+The app connects to MySQL as the non-root `MYSQL_USER` (default `goof`) with `MYSQL_PASSWORD`; the MySQL root password is randomly generated. MongoDB and MySQL are only reachable on the compose network and are not published on the host.
+
+When running Goof outside docker-compose, set `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD` and `MYSQL_DATABASE` to point at your MySQL server.
 
 ### Heroku usage
 Goof requires attaching a MongoLab service to be deployed as a Heroku app. 
