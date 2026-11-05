@@ -41,7 +41,8 @@ exports.loginHandler = function (req, res, next) {
         const redirectPage = req.body.redirectPage
         const session = req.session
         const username = req.body.username
-        return adminLoginSuccess(redirectPage, session, username, res)
+        const role = users[0].role === 'admin' ? 'admin' : 'user'
+        return adminLoginSuccess(redirectPage, session, username, role, res)
       } else {
         return res.status(401).send()
       }
@@ -51,8 +52,9 @@ exports.loginHandler = function (req, res, next) {
   }
 };
 
-function adminLoginSuccess(redirectPage, session, username, res) {
+function adminLoginSuccess(redirectPage, session, username, role, res) {
   session.loggedIn = 1
+  session.role = role
 
   // Log the login action for audit
   console.log(`User logged in: ${username}`)

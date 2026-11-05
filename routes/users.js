@@ -5,6 +5,27 @@ var typeorm = require("typeorm");
 var router = express.Router()
 module.exports = router
 
+var DEFAULT_ROLE = 'user'
+var ASSIGNABLE_ROLES = ['user', 'admin']
+
+function requireAuthentication(req, res, next) {
+  if (req.session && req.session.loggedIn === 1) {
+    return next()
+  }
+  return res.status(401).json({ error: 'authentication required' })
+}
+
+// Only admins may choose a role; everyone else always creates a plain user.
+function roleForRequest(req) {
+  var requested = req.body && req.body.role
+  if (req.session.role === 'admin' && ASSIGNABLE_ROLES.indexOf(requested) !== -1) {
+    return requested
+  }
+  return DEFAULT_ROLE
+}
+
+router.use(requireAuthentication)
+
 router.get('/', async (req, res, next) => {
 
   const mongoConnection = typeorm.getConnection('mysql')
@@ -31,7 +52,7 @@ router.post('/', async (req, res, next) => {
     const user = {}
     user.name = req.body.name
     user.address = req.body.address
-    user.role = req.body.role
+    user.role = roleForRequest(req)
 
     const savedRecord = await repo.save(user)
     console.log("Post has been saved: ", savedRecord)
