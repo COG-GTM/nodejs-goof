@@ -12,7 +12,6 @@ mongoose.model('Todo', Todo);
 var User = new Schema({
   username: String,
   password: String,
-  role: String,
 });
 
 mongoose.model('User', User);
@@ -53,12 +52,6 @@ User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
     new User({ username: 'admin@snyk.io', password: 'SuperSecretPassword', role: 'admin' }).save(function (err, user, count) {
       if (err) {
         console.log('error saving admin user');
-      }
-    });
-  } else if (users[0].role !== 'admin') {
-    User.update({ username: 'admin@snyk.io' }, { $set: { role: 'admin' } }).exec(function (err) {
-      if (err) {
-        console.log('error setting admin role');
       }
     });
   }

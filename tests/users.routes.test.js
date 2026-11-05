@@ -75,16 +75,11 @@ test('normal user requesting role=admin gets role user', async () => {
 })
 
 test('role defaults to user when omitted', async () => {
-  await postUser({ name: 'n', address: 'y' }, await login('admin'))
+  await postUser({ name: 'n', address: 'y' }, await login('user'))
   assert.strictEqual(saved[0].role, 'user')
 })
 
-test('admin may assign the admin role', async () => {
+test('client-supplied role is ignored even for an admin-flagged session', async () => {
   await postUser({ name: 'a', address: 'z', role: 'admin' }, await login('admin'))
-  assert.strictEqual(saved[0].role, 'admin')
-})
-
-test('admin cannot assign an unknown role', async () => {
-  await postUser({ name: 'a', address: 'z', role: 'superuser' }, await login('admin'))
   assert.strictEqual(saved[0].role, 'user')
 })
