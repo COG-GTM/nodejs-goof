@@ -252,9 +252,23 @@ exports.import = function (req, res, next) {
     importedFileType = { ext: "txt", mime: "text/plain" };
   }
   if (importedFileType["mime"] === zipFileExt["mime"]) {
-    var zip = AdmZip(importFile.data);
+    var zip;
+    try {
+      zip = AdmZip(importFile.data);
+    } catch (err) {
+      res.status(400).send('Invalid archive.');
+      return;
+    }
     var extracted_path = "/tmp/extracted_files";
-    zip.extractAllTo(extracted_path, true);
+    try {
+      utils.safeExtractZip(zip, extracted_path);
+    } catch (err) {
+      if (err.code === 'ZIP_ENTRY_OUTSIDE_TARGET' || err.code === 'ZIP_INVALID_ARCHIVE') {
+        res.status(400).send('Invalid archive.');
+        return;
+      }
+      return next(err);
+    }
     data = "No backup.txt file found";
     fs.readFile('backup.txt', 'ascii', function (err, data) {
       if (!err) {
