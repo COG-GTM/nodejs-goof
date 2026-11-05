@@ -236,8 +236,10 @@ exports.current_user = function (req, res, next) {
 
 var LOCALE_PATTERN = /^[a-z]{2,3}(-[a-z0-9]{2,4})?$/i;
 
-function isValidLocale(locale) {
-  return typeof locale === 'string' && LOCALE_PATTERN.test(locale.trim());
+function normalizeLocale(locale) {
+  if (typeof locale !== 'string') return null;
+  var normalized = locale.trim().replace(/_/g, '-');
+  return LOCALE_PATTERN.test(normalized) ? normalized : null;
 }
 
 function isBlank(str) {
@@ -279,10 +281,11 @@ exports.import = function (req, res, next) {
     var locale = parts[2];
     var format = parts[3];
     var item = what;
+    var safeLocale = normalizeLocale(locale);
     if (!isBlank(what)) {
-      if (!isBlank(when) && isValidLocale(locale) && !isBlank(format)) {
+      if (!isBlank(when) && safeLocale && !isBlank(format)) {
         console.log('setting locale ' + parts[1]);
-        moment.locale(locale.trim());
+        moment.locale(safeLocale);
         var d = moment(when);
         console.log('formatting ' + d);
         item += ' [' + d.format(format) + ']';
