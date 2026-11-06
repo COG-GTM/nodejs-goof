@@ -301,7 +301,7 @@ exports.about_new = function (req, res, next) {
     {
       title: 'Patch TODO List',
       subhead: 'Vulnerabilities at their best',
-      device: req.query.device
+      device: typeof req.query.device === 'string' ? req.query.device : ''
     });
 };
 
