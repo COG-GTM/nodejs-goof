@@ -239,12 +239,15 @@ function isBlank(str) {
 }
 
 exports.import = function (req, res, next) {
-  if (!req.files) {
+  var importFile = req.files && req.files.importFile;
+  if (Array.isArray(importFile)) {
+    importFile = importFile[0];
+  }
+  if (!importFile) {
     res.send('No files were uploaded.');
     return;
   }
 
-  var importFile = req.files.importFile;
   var data;
   var importedFileType = fileType(importFile.data);
   var zipFileExt = { ext: "zip", mime: "application/zip" };
