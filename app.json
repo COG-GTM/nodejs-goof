@@ -16,6 +16,10 @@
   "env": {
     "MONGOLAB_URI": {
       "required": true
+    },
+    "ADMIN_PASSWORD": {
+      "description": "Password for the admin@snyk.io account created on first start",
+      "required": true
     }
   },
   "formation": {

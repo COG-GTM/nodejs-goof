@@ -5,6 +5,8 @@ services:
     container_name: goof
     environment:
       - DOCKER=1
+      - ADMIN_USERNAME
+      - ADMIN_PASSWORD
     ports:
       - "3001:3001"
       - "9229:9229"
