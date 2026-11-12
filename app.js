@@ -54,6 +54,8 @@ app.get('/', routes.index);
 app.get('/login', routes.login);
 app.post('/login', routes.loginHandler);
 app.get('/admin', routes.isLoggedIn, routes.admin);
+app.get('/change_password', routes.hasSession, routes.change_password_form);
+app.post('/change_password', routes.hasSession, routes.change_password);
 app.get('/account_details', routes.isLoggedIn, routes.get_account_details);
 app.post('/account_details', routes.isLoggedIn, routes.save_account_details);
 app.get('/logout', routes.logout);
