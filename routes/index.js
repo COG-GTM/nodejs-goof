@@ -35,20 +35,24 @@ exports.index = function (req, res, next) {
 };
 
 exports.loginHandler = function (req, res, next) {
-  if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
-      if (users.length > 0) {
-        const redirectPage = req.body.redirectPage
-        const session = req.session
-        const username = req.body.username
-        return adminLoginSuccess(redirectPage, session, username, res)
-      } else {
-        return res.status(401).send()
-      }
-    });
-  } else {
+  const username = req.body.username
+  const password = req.body.password
+  if (typeof username !== 'string' || typeof password !== 'string' || !validator.isEmail(username)) {
     return res.status(401).send()
   }
+  User.findOne({ username: username }, function (err, user) {
+    if (err) return next(err)
+    if (!user) return res.status(401).send()
+    user.verifyPassword(password, function (err, valid) {
+      if (err) return next(err)
+      if (!valid) return res.status(401).send()
+      const redirectPage = req.body.redirectPage
+      const session = req.session
+      session.username = user.username
+      session.mustChangePassword = user.mustChangePassword === true
+      return adminLoginSuccess(redirectPage, session, username, res)
+    })
+  })
 };
 
 function adminLoginSuccess(redirectPage, session, username, res) {
@@ -57,11 +61,64 @@ function adminLoginSuccess(redirectPage, session, username, res) {
   // Log the login action for audit
   console.log(`User logged in: ${username}`)
 
-  if (redirectPage) {
+  if (session.mustChangePassword) {
+      return res.redirect('/change_password')
+  } else if (redirectPage) {
       return res.redirect(redirectPage)
   } else {
       return res.redirect('/admin')
   }
+}
+
+exports.change_password_form = function (req, res, next) {
+  return res.render('change_password', {
+    title: 'Change Password',
+    error: null,
+    minLength: User.MIN_PASSWORD_LENGTH,
+  })
+}
+
+exports.change_password = function (req, res, next) {
+  const currentPassword = req.body.currentPassword
+  const newPassword = req.body.newPassword
+  const confirmPassword = req.body.confirmPassword
+
+  function fail(status, message) {
+    return res.status(status).render('change_password', {
+      title: 'Change Password',
+      error: message,
+      minLength: User.MIN_PASSWORD_LENGTH,
+    })
+  }
+
+  if (typeof currentPassword !== 'string' || typeof newPassword !== 'string' || typeof confirmPassword !== 'string') {
+    return fail(400, 'All fields are required.')
+  }
+  if (newPassword.length < User.MIN_PASSWORD_LENGTH) {
+    return fail(400, `New password must be at least ${User.MIN_PASSWORD_LENGTH} characters.`)
+  }
+  if (newPassword !== confirmPassword) {
+    return fail(400, 'New passwords do not match.')
+  }
+  if (newPassword === currentPassword) {
+    return fail(400, 'New password must differ from the current password.')
+  }
+
+  User.findOne({ username: req.session.username }, function (err, user) {
+    if (err) return next(err)
+    if (!user) return fail(401, 'Current password is incorrect.')
+    user.verifyPassword(currentPassword, function (err, valid) {
+      if (err) return next(err)
+      if (!valid) return fail(401, 'Current password is incorrect.')
+      user.password = User.hashPassword(newPassword)
+      user.mustChangePassword = false
+      user.save(function (err) {
+        if (err) return next(err)
+        req.session.mustChangePassword = false
+        return res.redirect('/admin')
+      })
+    })
+  })
 }
 
 exports.login = function (req, res, next) {
@@ -113,10 +170,20 @@ exports.save_account_details = function(req, res, next) {
 }
 
 exports.isLoggedIn = function (req, res, next) {
-  if (req.session.loggedIn === 1) {
+  if (req.session.loggedIn === 1 && req.session.mustChangePassword) {
+    return res.redirect('/change_password')
+  } else if (req.session.loggedIn === 1) {
     return next()
   } else {
     return res.redirect('/')
+  }
+}
+
+exports.hasSession = function (req, res, next) {
+  if (req.session.loggedIn === 1 && req.session.username) {
+    return next()
+  } else {
+    return res.redirect('/login')
   }
 }
 

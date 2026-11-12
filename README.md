@@ -16,7 +16,7 @@ mongod &
 
 git clone https://github.com/snyk-labs/nodejs-goof
 npm install
-npm start
+GOOF_ADMIN_PASSWORD='<choose-a-strong-password>' npm start
 ```
 This will run Goof locally, using a local mongo on the default port and listening on port 3001 (http://localhost:3001)
 
@@ -28,8 +28,11 @@ You can also run the MongoDB server individually via Docker, such as:
 docker run --rm -p 27017:27017 mongo:3
 ```
 
+The `admin@snyk.io` account is only created when `GOOF_ADMIN_PASSWORD` (at least 12 characters) is set at startup. Its password is stored as a bcrypt hash, and the admin must choose a new password at `/change_password` on first login.
+
 ## Running with docker-compose
 ```bash
+export GOOF_ADMIN_PASSWORD='<choose-a-strong-password>'
 docker-compose up --build
 docker-compose down
 ```
@@ -85,7 +88,7 @@ The form is completely functional. The way it works is, it receives the profile 
 You'd think that what's the worst that can happen because we use a validation to confirm the expected input, however the validation doesn't take into account a new field that can be added to the object, such as `layout`, which when passed to a template language, could lead to Local File Inclusion (Path Traversal) vulnerabilities. Here is a proof-of-concept showing it:
 
 ```sh
-curl -X 'POST' --cookie c.txt --cookie-jar c.txt -H 'Content-Type: application/json' --data-binary '{"username": "admin@snyk.io", "password": "SuperSecretPassword"}' 'http://localhost:3001/login'
+curl -X 'POST' --cookie c.txt --cookie-jar c.txt -H 'Content-Type: application/json' --data-binary "{\"username\": \"admin@snyk.io\", \"password\": \"$GOOF_ADMIN_PASSWORD\"}" 'http://localhost:3001/login'
 ```
 
 ```sh
@@ -108,7 +111,7 @@ curl -X 'POST' -H 'Content-Type: application/json' --data-binary "{\"email\": \"
 #### NoSQL injection
 
 A POST request to `/login` will allow for authentication and signing-in to the system as an administrator user.
-It works by exposing `loginHandler` as a controller in `routes/index.js` and uses a MongoDB database and the `User.find()` query to look up the user's details (email as a username and password). One issue is that it indeed stores passwords in plaintext and not hashing them. However, there are other issues in play here.
+It works by exposing `loginHandler` as a controller in `routes/index.js` and uses a MongoDB database and the `User.find()` query to look up the user's details (email as a username and password). Passwords are stored as bcrypt hashes, and the login handler now rejects non-string `username`/`password` values, so the injection payloads below return `401`.
 
 
 We can send a request with an incorrect password to see that we get a failed attempt
@@ -118,7 +121,7 @@ echo '{"username":"admin@snyk.io", "password":"WrongPassword"}' | http --json $G
 
 And another request, as denoted with the following JSON request to sign-in as the admin user works as expected:
 ```sh
-echo '{"username":"admin@snyk.io", "password":"SuperSecretPassword"}' | http --json $GOOF_HOST/login -v
+echo "{\"username\":\"admin@snyk.io\", \"password\":\"$GOOF_ADMIN_PASSWORD\"}" | http --json $GOOF_HOST/login -v
 ```
 
 However, what if the password wasn't a string? what if it was an object? Why would an object be harmful or even considered an issue?
