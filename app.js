@@ -18,7 +18,7 @@ var methodOverride = require('method-override');
 var logger = require('morgan');
 var errorHandler = require('errorhandler');
 var optional = require('optional');
-var marked = require('marked');
+var marked = require('marked').marked;
 var fileUpload = require('express-fileupload');
 var dust = require('dustjs-linkedin');
 var dustHelpers = require('dustjs-helpers');
@@ -72,7 +72,8 @@ app.use('/users', routesUsers)
 app.use(st({ path: './public', url: '/public' }));
 
 // Add the option to output (sanitized!) markdown
-marked.setOptions({ sanitize: true });
+// GFM is off: its inline text regex is quadratic on email-like input (ReDoS)
+marked.setOptions({ sanitize: true, gfm: false });
 app.locals.marked = marked;
 
 // development only
