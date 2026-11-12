@@ -2,6 +2,8 @@ var mongoose = require('mongoose');
 var cfenv = require("cfenv");
 var Schema = mongoose.Schema;
 
+mongoose.set('strictQuery', true);
+
 var Todo = new Schema({
   content: Buffer,
   updated_at: Date,
@@ -42,10 +44,16 @@ if (mongoCFUri) {
 
 console.log("Using Mongo URI " + mongoUri);
 
-mongoose.connect(mongoUri);
+mongoose.connect(mongoUri).catch(function (err) {
+  console.log('error connecting to Mongo: ' + err.message);
+});
 
 User = mongoose.model('User');
 User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
+  if (err) {
+    console.log('error looking up admin user: ' + err.message);
+    return;
+  }
   console.log(users);
   if (users.length === 0) {
     console.log('no admin');
