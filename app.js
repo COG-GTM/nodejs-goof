@@ -20,6 +20,7 @@ var errorHandler = require('errorhandler');
 var optional = require('optional');
 var marked = require('marked');
 var fileUpload = require('express-fileupload');
+var uploadOptions = require('./upload-options');
 var dust = require('dustjs-linkedin');
 var dustHelpers = require('dustjs-helpers');
 var cons = require('consolidate');
@@ -46,7 +47,7 @@ app.use(session({
 }))
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-app.use(fileUpload());
+app.use(fileUpload(uploadOptions));
 
 // Routes
 app.use(routes.current_user);
