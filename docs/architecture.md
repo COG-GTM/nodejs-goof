@@ -21,7 +21,7 @@ re-render the PNG and SVG with `docs/diagrams/render.sh` (needs `apt-get install
 | MongoDB access | `mongoose-db.js` | Mongoose 4.2 models `Todo` (`content: Buffer`, `updated_at`) and `User` (`username`, `password`); seeds `admin@snyk.io` / `SuperSecretPassword` in plaintext when missing. |
 | MySQL access | `typeorm-db.js`, `entity/Users.js` | TypeORM 0.2 connection named `mysql` to `localhost:3306`, user `root`/`root`, database `acme`, `synchronize: true`; seeds users Liran (`user`) and Simon (`admin`) on every start. |
 | Exploit material | `exploits/` | Shell aliases, payloads and walkthroughs for each vulnerability (`GOOF_HOST` defaults to `http://localhost:3001`). |
-| Unused code | `service/adminService.js`, `utils.js` | `adminService.js` is fully commented out; `utils.js` is not required by the app. |
+| Unused code | `service/adminService.js`, `utils.js` | `adminService.js` is fully commented out; `utils.js` is required by `routes/index.js` at startup, but none of its helpers are called. |
 
 ### Database selection
 
