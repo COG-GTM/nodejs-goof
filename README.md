@@ -3,22 +3,26 @@
 
 A vulnerable Node.js demo application, based on the [Dreamers Lab tutorial](http://dreamerslab.com/blog/en/write-a-todo-list-with-express-and-mongodb/).
 
+See [docs/architecture.md](docs/architecture.md) for the architecture diagram, the route-by-route map of planted vulnerabilities, and the build and CI setup.
+
 ## Features
 
 This vulnerable app includes the following capabilities to experiment with:
 * [Exploitable packages](#exploiting-the-vulnerabilities) with known vulnerabilities
 * [Docker Image Scanning](#docker-image-scanning) for base images with known vulnerabilities in system libraries
-* [Runtime alerts](#runtime-alerts) for detecting an invocation of vulnerable functions in open source dependencies
 
 ## Running
+Requires Node.js 17 or newer (the npm scripts pass `--openssl-legacy-provider`; the Dockerfile uses Node.js 18).
+
 ```bash
 mongod &
 
-git clone https://github.com/snyk-labs/nodejs-goof
+git clone https://github.com/COG-GTM/nodejs-goof
+cd nodejs-goof
 npm install
 npm start
 ```
-This will run Goof locally, using a local mongo on the default port and listening on port 3001 (http://localhost:3001)
+This will run Goof locally, using a local mongo on the default port and listening on port 3001 (http://localhost:3001). Set `PORT` to change the port, or `MONGODB_URI` to use another MongoDB server (for example `MONGODB_URI=mongodb://localhost:27018/express-todo`).
 
 Note: You *have* to use an old version of MongoDB version due to some of these old libraries' database server APIs. MongoDB 3 is known to work ok.
 
@@ -28,25 +32,35 @@ You can also run the MongoDB server individually via Docker, such as:
 docker run --rm -p 27017:27017 mongo:3
 ```
 
+The `/users` routes also need MySQL on `localhost:3306` with user `root`, password `root` and a database named `acme` (hard-coded in `typeorm-db.js`). Without it the app still starts, logs a MySQL connection error, and only `/users` fails:
+
+```sh
+docker run --rm -p 3306:3306 -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=acme mysql:5
+```
+
 ## Running with docker-compose
 ```bash
 docker-compose up --build
 docker-compose down
 ```
+This starts the app with `mongo:3` and `mysql:5`. The app reaches MongoDB as `goof-mongo`, but `typeorm-db.js` connects to MySQL on `localhost`, so `/users` does not work inside Compose.
 
 ### Heroku usage
 Goof requires attaching a MongoLab service to be deployed as a Heroku app. 
-That sets up the MONGOLAB_URI env var so everything after should just work. 
+That sets up the MONGOLAB_URI env var so everything after should just work (`MONGODB_URI` is also read). See [deploy-heroku.md](deploy-heroku.md).
 
 ### CloudFoundry usage
 Goof requires attaching a MongoLab service and naming it "goof-mongo" to be deployed on CloudFoundry. 
 The code explicitly looks for credentials to that service. 
 
 ### Cleanup
-To bulk delete the current list of TODO items from the DB run:
+To bulk delete the current list of TODO items from the local DB run (needs the legacy `mongo` shell on your `PATH`):
 ```bash
 npm run cleanup
 ```
+
+### Tests
+`npm test` runs `snyk test` and needs a Snyk login (`snyk auth`) or `SNYK_TOKEN`. It reports the vulnerable dependencies and exits non-zero by design.
 
 ## Exploiting the vulnerabilities
 
@@ -73,6 +87,11 @@ Here are the exploitable vulnerable packages:
 * Information exposure via Hardcoded values in code
 * Security misconfiguration exposes server information 
 * Insecure protocol (HTTP) communication 
+* Zip Slip (archive path traversal) in `/import`
+* Prototype pollution in `/chat` and `/users`
+* Server-side template injection (Dust) in `/about_new`
+
+[docs/architecture.md](docs/architecture.md#routes-and-planted-vulnerabilities) maps each route to its vulnerability and exploit script.
 
 #### Code injection
 
@@ -144,17 +163,17 @@ One fault here is that the `redirectPage` is rendered as raw HTML and not proper
 http://localhost:3001/login?redirectPage="><script>alert(1)</script>
 ```
 
-To exploit the open redirect, simply provide a URL such as `redirectPage=https://google.com` which exploits the fact that the code doesn't enforce local URLs in `index.js:72`.
+To exploit the open redirect, simply provide a URL such as `redirectPage=https://google.com` which exploits the fact that the code doesn't enforce local URLs in `routes/index.js:61`.
 
 #### Hardcoded values - session information
 
-The application initializes a cookie-based session on `app.js:40` as follows:
+The application initializes a cookie-based session on `app.js:42` as follows:
 
 ```js
 app.use(session({
   secret: 'keyboard cat',
   name: 'connect.sid',
-  cookie: { secure: true }
+  cookie: { path: '/' }
 }))
 ```
 
@@ -170,45 +189,36 @@ module.exports = {
 And then require the configuration file and use it to initialize the session.
 However, that still maintains the secret information inside another file, and Snyk Code will warn you about it.
 
-Another case we can discuss here in session management, is that the cookie setting is initialized with `secure: true` which means it will only be transmitted over HTTPS connections. However, there's no `httpOnly` flag set to true, which means that the default false value of it makes the cookie accessible via JavaScript. Snyk Code highlights this potential security misconfiguration so we can fix it. We can note that Snyk Code shows this as a quality information, and not as a security error.
+Another case we can discuss here in session management, is that the cookie options only set `path`. There's no `secure: true`, so the session cookie is also sent over plain HTTP connections. Snyk Code highlights this potential security misconfiguration so we can fix it. We can note that Snyk Code shows this as a quality information, and not as a security error.
+
+`app.js` also hard-codes a `SECRET_TOKEN_...` value and prints it to the console at startup.
 
 Snyk Code will also find hardcoded secrets in source code that isn't part of the application logic, such as `tests/` or `examples/` folders. We have a case of that in this application with the `tests/authentication.component.spec.js` file. In the finding, Snyk Code will tag it as `InTest`, `Tests`, or `Mock`, which help us easily triage it and indeed ignore this finding as it isn't actually a case of information exposure.
 
 ## Docker Image Scanning
 
-The `Dockerfile` makes use of a base image (`node:6-stretch`) that is known to have system libraries with vulnerabilities.
+The `Dockerfile` builds on `node:18.13.0`, an old Node.js image whose system libraries have known vulnerabilities (the older `node:6-stretch` base is left commented out in the file).
 
 To scan the image for vulnerabilities, run:
 ```bash
-snyk test --docker node:6-stretch --file=Dockerfile
+snyk container test node:18.13.0 --file=Dockerfile
 ```
 
 To monitor this image and receive alerts with Snyk:
 ```bash
-snyk monitor --docker node:6-stretch
+snyk container monitor node:18.13.0
 ```
 
 ## Runtime Alerts
 
-Snyk provides the ability to monitor application runtime behavior and detect an invocation of a function is known to be vulnerable and used within open source dependencies that the application makes use of.
-
-The agent is installed and initialized in [app.js](./app.js#L5).
-
-For the agent to report back to your snyk account on the vulnerabilities it detected it needs to know which project on Snyk to associate with the monitoring. Due to that, we need to provide it with the project id through an environment variable `SNYK_PROJECT_ID`
-
-To run the Node.js app with runtime monitoring:
-```bash
-SNYK_PROJECT_ID=<PROJECT_ID> npm start
-```
-
-** The app will continue to work normally even if it's not provided a project id
+Earlier versions of Goof loaded the Snyk runtime agent from `app.js`. The code on `main` no longer includes it, and `SNYK_PROJECT_ID` is not read.
 
 ## Fixing the issues
 To find these flaws in this application (and in your own apps), run:
 ```
-npm install -g snyk
-snyk wizard
+npm install
+npx snyk wizard
 ```
 
-In this application, the default `snyk wizard` answers will fix all the issues.
+`snyk wizard` exists only in older Snyk CLIs such as the version in this repo's `devDependencies`; with a current global CLI, use `snyk test` and upgrade the reported packages. In this application, the default `snyk wizard` answers will fix all the issues.
 When the wizard is done, restart the application and run the exploits again to confirm they are fixed.

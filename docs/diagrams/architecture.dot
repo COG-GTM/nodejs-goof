@@ -1,0 +1,50 @@
+// Architecture of nodejs-goof (Snyk's intentionally vulnerable todo app) as it runs on `main`.
+// Red text marks planted vulnerabilities; they are intentional and documented, not bugs to fix.
+// Re-render with ./render.sh (needs Graphviz: `apt-get install graphviz`).
+digraph goof {
+  graph [rankdir=LR, fontname="DejaVu Sans", fontsize=18, nodesep=0.35, ranksep=0.7,
+         pad=0.3, newrank=true, label=<<b>nodejs-goof: runtime architecture on main</b>>, labelloc=t];
+  node  [shape=box, style="rounded,filled", fillcolor="white", fontname="DejaVu Sans", fontsize=16, margin="0.18,0.08"];
+  edge  [fontname="DejaVu Sans", fontsize=13, color="#555555"];
+
+  browser [label=<<b>Browser / curl</b><br/><font point-size="13">exploits/*.sh, exploits/*.md</font>>, shape=box, fillcolor="#eef3fb"];
+
+  subgraph cluster_app {
+    label=<<b>Node.js process: app.js</b> (port $PORT, default 3001)>; style="rounded,filled"; fillcolor="#f7f7f7"; color="#999999";
+
+    mw [label=<<b>Express 4.12 middleware</b><br/><font point-size="13">morgan · method-override<br/>express-session <font color="#c0392b">(hard-coded secret)</font><br/>body-parser json + urlencoded<br/>express-fileupload</font>>];
+
+    subgraph cluster_routes {
+      label=<<b>Route handlers</b>>; style="rounded"; color="#bbbbbb";
+      todos [label=<<b>routes/index.js: todos</b><br/><font point-size="13">GET / · POST /create · GET /edit/:id<br/>POST /update/:id · GET /destroy/:id · POST /import<br/><font color="#c0392b">command injection (identify), ReDoS (ms),<br/>Zip Slip (adm-zip), moment ReDoS</font></font>>];
+      auth [label=<<b>routes/index.js: auth + account</b><br/><font point-size="13">GET|POST /login · GET /logout · GET /admin<br/>GET|POST /account_details<br/><font color="#c0392b">NoSQL injection, open redirect, XSS,<br/>hbs layout injection, validator ReDoS</font></font>>];
+      about [label=<<b>routes/index.js: GET /about_new</b><br/><font point-size="13"><font color="#c0392b">Dust template code injection</font></font>>];
+      chat [label=<<b>routes/index.js: /chat</b><br/><font point-size="13">GET · PUT · DELETE (in-memory messages)<br/><font color="#c0392b">prototype pollution (lodash _.merge)</font></font>>];
+      users [label=<<b>routes/users.js: /users</b><br/><font point-size="13">GET · POST (TypeORM repository)<br/><font color="#c0392b">TypeORM prototype pollution</font></font>>];
+      static [label=<<b>st: /public/*</b><br/><font point-size="13">public/ (css, images, about.html)<br/><font color="#c0392b">st directory traversal</font></font>>];
+    }
+
+    views [label=<<b>Views (views/)</b><br/><font point-size="13">EJS (ejs-locals): layout, index, edit, admin<br/>Handlebars (hbs): account.hbs, layout.hbs<br/>Dust (consolidate): about_new.dust<br/>marked renders todo text <font color="#c0392b">(XSS)</font></font>>, fillcolor="#fdf6e3"];
+
+    mongoosedb [label=<<b>mongoose-db.js</b> (Mongoose 4.2)<br/><font point-size="13">models Todo, User<br/>seeds admin@snyk.io <font color="#c0392b">(plaintext password)</font></font>>, fillcolor="#eaf7ea"];
+    typeormdb [label=<<b>typeorm-db.js</b> (TypeORM 0.2)<br/><font point-size="13">entity/Users.js, synchronize: true<br/>seeds Liran (user), Simon (admin)</font>>, fillcolor="#eaf7ea"];
+  }
+
+  mongo [label=<<b>MongoDB</b> · db express-todo<br/><font point-size="13">URI: CF service goof-mongo, else MONGOLAB_URI,<br/>else MONGODB_URI, else DOCKER=1 → goof-mongo,<br/>else localhost (needs an old server, e.g. mongo:3)</font>>, shape=cylinder, fillcolor="#d5f5e3"];
+  mysql [label=<<b>MySQL</b> · db acme<br/><font point-size="13">hard-coded localhost:3306, root/root<br/>(e.g. mysql:5)</font>>, shape=cylinder, fillcolor="#d5f5e3"];
+  os [label=<<b>Host OS</b><br/><font point-size="13">child_process exec: ImageMagick identify<br/>/tmp/extracted_files (zip import)</font>>, fillcolor="#fbeeee"];
+
+  browser -> mw [label="HTTP"];
+  mw -> todos; mw -> auth; mw -> about; mw -> chat; mw -> users; mw -> static;
+  todos -> views; auth -> views; about -> views;
+  todos -> mongoosedb [label="Todo"];
+  auth -> mongoosedb [label="User.find"];
+  users -> typeormdb [label="getConnection('mysql')"];
+  mongoosedb -> mongo [dir=forward];
+  typeormdb -> mysql [dir=forward];
+  todos -> os [style=dashed, label="exec / extract"];
+
+  // Keep the image near 16:9: stores and host OS share the adapters' column.
+  { rank=same; mysql; typeormdb; views; mongoosedb; mongo; os; }
+  mysql -> typeormdb -> views -> mongoosedb -> mongo -> os [style=invis];
+}
