@@ -45,14 +45,25 @@ console.log("Using Mongo URI " + mongoUri);
 mongoose.connect(mongoUri);
 
 User = mongoose.model('User');
-User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
-  console.log(users);
-  if (users.length === 0) {
-    console.log('no admin');
-    new User({ username: 'admin@snyk.io', password: 'SuperSecretPassword' }).save(function (err, user, count) {
-      if (err) {
-        console.log('error saving admin user');
-      }
-    });
-  }
-});
+
+var adminUsername = process.env.GOOF_ADMIN_USERNAME || 'admin@snyk.io';
+var adminPassword = process.env.GOOF_ADMIN_PASSWORD;
+
+if (!adminPassword) {
+  console.log('GOOF_ADMIN_PASSWORD is not set; skipping admin user seeding');
+} else {
+  User.find({ username: adminUsername }).exec(function (err, users) {
+    if (err) {
+      console.log('error looking up admin user');
+      return;
+    }
+    if (users.length === 0) {
+      console.log('no admin, creating ' + adminUsername);
+      new User({ username: adminUsername, password: adminPassword }).save(function (err, user, count) {
+        if (err) {
+          console.log('error saving admin user');
+        }
+      });
+    }
+  });
+}
