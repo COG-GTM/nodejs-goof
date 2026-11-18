@@ -238,6 +238,10 @@ function isBlank(str) {
   return (!str || /^\s*$/.test(str));
 }
 
+function isValidLocale(str) {
+  return /^[a-z]{2,3}(-[a-z0-9]{2,4})?$/i.test(str);
+}
+
 exports.import = function (req, res, next) {
   if (!req.files) {
     res.send('No files were uploaded.');
@@ -275,7 +279,12 @@ exports.import = function (req, res, next) {
     var item = what;
     if (!isBlank(what)) {
       if (!isBlank(when) && !isBlank(locale) && !isBlank(format)) {
-        console.log('setting locale ' + parts[1]);
+        locale = locale.trim();
+        if (!isValidLocale(locale)) {
+          console.log('rejecting line with invalid locale');
+          return;
+        }
+        console.log('setting locale ' + locale);
         moment.locale(locale);
         var d = moment(when);
         console.log('formatting ' + d);
