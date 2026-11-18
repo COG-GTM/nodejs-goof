@@ -20,6 +20,15 @@ npm start
 ```
 This will run Goof locally, using a local mongo on the default port and listening on port 3001 (http://localhost:3001)
 
+The admin user is only created when `GOOF_ADMIN_PASSWORD` is set (username defaults to `admin@snyk.io`, override with `GOOF_ADMIN_USERNAME`). Generate a password and export it before starting the app, e.g.:
+
+```bash
+export GOOF_ADMIN_PASSWORD="$(openssl rand -base64 18)"
+npm start
+```
+
+If an admin user was created by an earlier version of Goof, change its password in MongoDB.
+
 Note: You *have* to use an old version of MongoDB version due to some of these old libraries' database server APIs. MongoDB 3 is known to work ok.
 
 You can also run the MongoDB server individually via Docker, such as:
@@ -30,6 +39,7 @@ docker run --rm -p 27017:27017 mongo:3
 
 ## Running with docker-compose
 ```bash
+export GOOF_ADMIN_PASSWORD="$(openssl rand -base64 18)"
 docker-compose up --build
 docker-compose down
 ```
@@ -37,6 +47,7 @@ docker-compose down
 ### Heroku usage
 Goof requires attaching a MongoLab service to be deployed as a Heroku app. 
 That sets up the MONGOLAB_URI env var so everything after should just work. 
+Set the `GOOF_ADMIN_PASSWORD` config var to create the admin user. 
 
 ### CloudFoundry usage
 Goof requires attaching a MongoLab service and naming it "goof-mongo" to be deployed on CloudFoundry. 
@@ -85,7 +96,7 @@ The form is completely functional. The way it works is, it receives the profile 
 You'd think that what's the worst that can happen because we use a validation to confirm the expected input, however the validation doesn't take into account a new field that can be added to the object, such as `layout`, which when passed to a template language, could lead to Local File Inclusion (Path Traversal) vulnerabilities. Here is a proof-of-concept showing it:
 
 ```sh
-curl -X 'POST' --cookie c.txt --cookie-jar c.txt -H 'Content-Type: application/json' --data-binary '{"username": "admin@snyk.io", "password": "SuperSecretPassword"}' 'http://localhost:3001/login'
+curl -X 'POST' --cookie c.txt --cookie-jar c.txt -H 'Content-Type: application/json' --data-binary "{\"username\": \"admin@snyk.io\", \"password\": \"$GOOF_ADMIN_PASSWORD\"}" 'http://localhost:3001/login'
 ```
 
 ```sh
@@ -118,7 +129,7 @@ echo '{"username":"admin@snyk.io", "password":"WrongPassword"}' | http --json $G
 
 And another request, as denoted with the following JSON request to sign-in as the admin user works as expected:
 ```sh
-echo '{"username":"admin@snyk.io", "password":"SuperSecretPassword"}' | http --json $GOOF_HOST/login -v
+echo "{\"username\":\"admin@snyk.io\", \"password\":\"$GOOF_ADMIN_PASSWORD\"}" | http --json $GOOF_HOST/login -v
 ```
 
 However, what if the password wasn't a string? what if it was an object? Why would an object be harmful or even considered an issue?

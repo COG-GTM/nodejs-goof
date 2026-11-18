@@ -16,6 +16,10 @@
   "env": {
     "MONGOLAB_URI": {
       "required": true
+    },
+    "GOOF_ADMIN_PASSWORD": {
+      "description": "Password for the admin user created at first startup",
+      "generator": "secret"
     }
   },
   "formation": {
