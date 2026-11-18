@@ -113,7 +113,7 @@ exports.save_account_details = function(req, res, next) {
 }
 
 exports.isLoggedIn = function (req, res, next) {
-  if (req.session.loggedIn === 1) {
+  if (hasOwn(req.session, 'loggedIn') && req.session.loggedIn === 1) {
     return next()
   } else {
     return res.redirect('/')
@@ -320,6 +320,10 @@ const users = [
 let messages = [];
 let lastId = 1;
 
+function hasOwn(obj, key) {
+  return obj != null && Object.prototype.hasOwnProperty.call(obj, key);
+}
+
 function findUser(auth) {
   return users.find((u) =>
     u.name === auth.name &&
@@ -339,16 +343,28 @@ exports.chat = {
       return;
     }
 
-    const message = {
-      // Default message icon. Cen be overwritten by user.
-      icon: '👋',
-    };
+    const input = req.body.message;
+    if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+      res.status(400).send({ ok: false, error: 'Invalid message' });
+      return;
+    }
 
-    _.merge(message, req.body.message, {
+    const text = hasOwn(input, 'text') ? input.text : undefined;
+    const icon = hasOwn(input, 'icon') ? input.icon : undefined;
+    if (typeof text !== 'string' ||
+      (icon !== undefined && typeof icon !== 'string')) {
+      res.status(400).send({ ok: false, error: 'Invalid message' });
+      return;
+    }
+
+    const message = {
+      // Default message icon. Can be overwritten by user.
+      icon: icon !== undefined ? icon : '👋',
+      text: text,
       id: lastId++,
       timestamp: Date.now(),
       userName: user.name,
-    });
+    };
 
     messages.push(message);
     res.send({ ok: true });
@@ -356,7 +372,7 @@ exports.chat = {
   delete(req, res) {
     const user = findUser(req.body.auth || {});
 
-    if (!user || !user.canDelete) {
+    if (!user || !hasOwn(user, 'canDelete') || user.canDelete !== true) {
       res.status(403).send({ ok: false, error: 'Access denied' });
       return;
     }
