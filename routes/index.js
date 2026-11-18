@@ -87,21 +87,33 @@ exports.get_account_details = function(req, res, next) {
 }
 
 exports.save_account_details = function(req, res, next) {
-  // get the profile details from the JSON
-	const profile = req.body
+  // only pick the expected profile fields so that extra keys (e.g. `layout`)
+  // never reach the view engine as render options
+  const body = req.body || {}
+  const fields = ['email', 'phone', 'firstname', 'lastname', 'country']
+  const allStrings = fields.every(function (field) {
+    return typeof body[field] === 'string'
+  })
+
   // validate the input
-  if (validator.isEmail(profile.email, { allow_display_name: true })
+  if (allStrings
+    && validator.isEmail(body.email, { allow_display_name: true })
     // allow_display_name allows us to receive input as:
     // Display Name <email-address>
     // which we consider valid too
-    && validator.isMobilePhone(profile.phone, 'he-IL')
-    && validator.isAscii(profile.firstname)
-    && validator.isAscii(profile.lastname)
-    && validator.isAscii(profile.country)
+    && validator.isMobilePhone(body.phone, 'he-IL')
+    && validator.isAscii(body.firstname)
+    && validator.isAscii(body.lastname)
+    && validator.isAscii(body.country)
   ) {
-    // trim any extra spaces on the right of the name
-    profile.firstname = validator.rtrim(profile.firstname)
-    profile.lastname = validator.rtrim(profile.lastname)
+    const profile = {
+      email: body.email,
+      phone: body.phone,
+      // trim any extra spaces on the right of the name
+      firstname: validator.rtrim(body.firstname),
+      lastname: validator.rtrim(body.lastname),
+      country: body.country
+    }
 
     // render the view
     return res.render('account.hbs', profile)
