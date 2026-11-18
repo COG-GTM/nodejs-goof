@@ -10,6 +10,9 @@ var readline = require('readline');
 var moment = require('moment');
 var exec = require('child_process').exec;
 var validator = require('validator');
+var crypto = require('crypto');
+var bcrypt = require('bcryptjs');
+var BCRYPT_HASH = /^\$2[aby]\$\d{2}\$/;
 
 // zip-slip
 var fileType = require('file-type');
@@ -35,21 +38,30 @@ exports.index = function (req, res, next) {
 };
 
 exports.loginHandler = function (req, res, next) {
-  if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
-      if (users.length > 0) {
-        const redirectPage = req.body.redirectPage
-        const session = req.session
-        const username = req.body.username
-        return adminLoginSuccess(redirectPage, session, username, res)
-      } else {
-        return res.status(401).send()
-      }
-    });
-  } else {
+  var username = req.body.username
+  var password = req.body.password
+  if (typeof username !== 'string' || typeof password !== 'string' || !validator.isEmail(username)) {
     return res.status(401).send()
   }
+  User.findOne({ username: username }, function (err, user) {
+    if (err) return next(err)
+    if (!user) return res.status(401).send()
+    passwordMatches(password, user.password, function (err, match) {
+      if (err) return next(err)
+      if (!match) return res.status(401).send()
+      return adminLoginSuccess(req.body.redirectPage, req.session, username, res)
+    })
+  });
 };
+
+function passwordMatches(candidate, stored, callback) {
+  if (typeof stored !== 'string') return callback(null, false)
+  if (BCRYPT_HASH.test(stored)) return bcrypt.compare(candidate, stored, callback)
+  // Legacy plaintext record: compare fixed-length digests in constant time.
+  var a = crypto.createHash('sha256').update(candidate).digest()
+  var b = crypto.createHash('sha256').update(stored).digest()
+  return callback(null, crypto.timingSafeEqual(a, b))
+}
 
 function adminLoginSuccess(redirectPage, session, username, res) {
   session.loggedIn = 1
