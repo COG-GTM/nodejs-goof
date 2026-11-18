@@ -28,6 +28,14 @@ You can also run the MongoDB server individually via Docker, such as:
 docker run --rm -p 27017:27017 mongo:3
 ```
 
+### Image metadata lookup
+
+When a todo contains a Markdown image (`![alt text](https://host/img.png "title")`), the app runs ImageMagick `identify` on the URL without a shell. Only `http`/`https` URLs whose host is listed in the comma-separated `IMAGE_HOST_ALLOWLIST` environment variable are checked; when it is unset, no lookup runs.
+
+```sh
+IMAGE_HOST_ALLOWLIST=images.example.com,cdn.example.com npm start
+```
+
 ## Running with docker-compose
 ```bash
 docker-compose up --build
