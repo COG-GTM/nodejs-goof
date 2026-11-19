@@ -14,6 +14,6 @@ location and a normalized body per request.
 
 ```bash
 # fresh app + empty todos collection, then:
-python3 parity/parity.py --base http://localhost:8080 --out parity/after/java.json \
+python3 parity/parity.py --base http://localhost:3001 --out parity/after/java.json \
   --compare parity/baseline/node.json --allow parity/accepted-mismatches.json
 ```

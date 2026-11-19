@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Account details')}"></head>
+<body>
+  <div id="layout">
+    <style>strong {font-weight: bold}</style>
+    <th:block th:if="${profile.firstname != null and !#strings.isEmpty(profile.firstname)}">
+      <h1 id="page-title" th:text="|Account details for: ${profile.firstname}|">Account details</h1>
+      <center><h3 style="color: green">details saved</h3></center>
+    </th:block>
+    <h1 th:unless="${profile.firstname != null and !#strings.isEmpty(profile.firstname)}" id="page-title" style="color: red">Account details missing</h1>
+    <div id="list">
+      <form th:action="@{/account_details}" method="POST" accept-charset="utf-8">
+        <div class="item-new">
+          <center>First name</center>
+          <input class="input" type="text" name="firstname" th:value="${profile.firstname}" />
+          <br/>
+          <center>Last name</center>
+          <input class="input" type="text" name="lastname" th:value="${profile.lastname}" />
+          <br/>
+          <center>Country</center>
+          <input class="input" type="text" name="country" th:value="${profile.country}" />
+          <br/>
+          <center>Phone number</center>
+          <input class="input" type="text" name="phone" th:value="${profile.phone}" />
+          <br/>
+          <center>Email</center>
+          <input class="input" type="text" name="email" th:value="${profile.email}" />
+          <br/>
+        </div>
+        <br/>
+        <br/>
+        <button type="submit">Save account details</button>
+      </form>
+    </div>
+    <div id="layout-footer"></div>
+  </div>
+  <div th:replace="~{fragments/layout :: about-footer}"></div>
+</body>
+</html>

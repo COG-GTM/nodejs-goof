@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${title})}"></head>
+<body>
+  <div id="layout">
+    <style>strong {font-weight: bold}</style>
+    <div class="patch-header">
+      <img class="snyk-patch" src="/public/images/snyk_patch.jpeg" alt="Snyk patch" />
+      <h1 id="page-title" th:text="${title}">Patch TODO List</h1>
+    </div>
+    <div id="list">
+      <form th:action="@{/create}" method="post" accept-charset="utf-8">
+        <div class="item-new">
+          <input class="input" type="text" name="content" />
+        </div>
+      </form>
+      <div class="item" th:each="todo : ${todos}">
+        <a class="update-link" th:href="@{/edit/{id}(id=${todo.id})}" title="Update this todo item" th:utext="${todo.html}"></a>
+        <a class="del-btn" th:href="@{/destroy/{id}(id=${todo.id})}" title="Delete this todo item">Delete</a>
+      </div>
+    </div>
+    <div id="layout-footer"></div>
+  </div>
+  <div th:replace="~{fragments/layout :: import-footer}"></div>
+</body>
+</html>

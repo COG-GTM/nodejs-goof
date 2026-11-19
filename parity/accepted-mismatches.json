@@ -1,0 +1,5 @@
+{
+  "home after import": {
+    "body": "Order of todos imported in the same request. Node saves them asynchronously with the same millisecond Date.now() and MongoDB 3.6 sorts ties unstably, so the legacy order is not deterministic. Java orders by updated_at then id (newest first), i.e. CSV lines in reverse order. Same set of todos and content."
+  }
+}

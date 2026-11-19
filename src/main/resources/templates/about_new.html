@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <title th:text="${title}">Patch TODO List</title>
+</head>
+<body th:style="${device == 'Desktop'} ? 'font-size: medium; text-align: center;' : 'font-size: x-large; text-align: center;'">
+  <h1 id="page-title" th:text="${title}">Patch TODO List</h1>
+  <h2 id="page-title" th:text="${subhead}">Vulnerabilities at their best</h2>
+  <p>The BESTest todo app evar</p>
+  <div style="position:absolute; bottom:0;" th:text="|Device string (debug): ${device}|">Device string (debug):</div>
+</body>
+</html>

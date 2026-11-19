@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+  <meta charset="utf-8" />
+  <title th:text="${title}">Goof</title>
+  <link rel="stylesheet" href="/public/css/screen.css" />
+</head>
+<body>
+  <div th:fragment="import-footer" id="footer-wrap">
+    <form id="uploadForm" th:action="@{/import}" method="post" enctype="multipart/form-data">
+      <input type="file" name="importFile" />
+      <input type="submit" value="Import!" />
+    </form>
+    <button><a href="/public/about.html">About</a></button>
+  </div>
+  <div th:fragment="about-footer" id="footer-wrap">
+    <div id="footer">
+      <a href="/public/about.html">about</a>
+    </div>
+  </div>
+</body>
+</html>
