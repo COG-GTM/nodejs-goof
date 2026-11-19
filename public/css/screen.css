@@ -103,6 +103,12 @@ body {
   align-self: center;
 }
 
+.todo-count {
+  margin: 0 0.75rem;
+  color: #666666;
+  font-weight: bold;
+}
+
 /* line 38, ../sass/screen.sass */
 .item, .item-new {
   overflow: hidden;
