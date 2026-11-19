@@ -23,7 +23,7 @@ public final class MomentFormat {
 	private static final int MAX_FORMAT = 200;
 
 	private static final Pattern TOKENS = Pattern.compile(
-			"\\[[^\\]]*]|YYYY|YY|Q|MMMM|MMM|MM|M|Do|DDDD|DDD|DD|D|dddd|ddd|dd|d|HH|H|hh|h|mm|m|ss|s|SSS|A|a|ZZ|Z|X|x|.",
+			"\\[[^\\[\\]]*]|YYYY|YY|Q|MMMM|MMM|MM|M|Do|DDDD|DDD|DD|D|dddd|ddd|dd|d|HH|H|hh|h|mm|m|ss|s|SSS|A|a|ZZ|Z|X|x|.",
 			Pattern.DOTALL);
 
 	private MomentFormat() {

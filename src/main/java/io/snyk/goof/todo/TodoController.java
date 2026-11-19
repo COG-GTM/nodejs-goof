@@ -56,7 +56,7 @@ public class TodoController {
 		String encoded = Base64.getEncoder().encodeToString(todo.getContent().getBytes(StandardCharsets.UTF_8));
 		return ResponseEntity.status(HttpStatus.FOUND)
 			.header(HttpHeaders.LOCATION, "/")
-			.contentType(new MediaType(MediaType.TEXT_HTML, StandardCharsets.UTF_8))
+			.contentType(MediaType.TEXT_PLAIN)
 			.body(encoded);
 	}
 

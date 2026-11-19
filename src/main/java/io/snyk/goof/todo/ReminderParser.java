@@ -16,7 +16,7 @@ public final class ReminderParser {
 	private static final int MAX_INPUT = 10_000;
 
 	private static final Pattern DURATION = Pattern
-		.compile("((?:\\d+)?\\.?\\d+) *(ms|seconds?|s|minutes?|m|hours?|h|days?|d|years?|y)?", Pattern.CASE_INSENSITIVE);
+		.compile("(\\d+(?:\\.\\d+)?|\\.\\d+) *(ms|seconds?|s|minutes?|m|hours?|h|days?|d|years?|y)?", Pattern.CASE_INSENSITIVE);
 
 	private static final double SECOND = 1000;
 
