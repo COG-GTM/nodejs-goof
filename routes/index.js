@@ -35,6 +35,9 @@ exports.index = function (req, res, next) {
 };
 
 exports.loginHandler = function (req, res, next) {
+  if (typeof req.body.username !== 'string' || typeof req.body.password !== 'string') {
+    return res.status(401).send()
+  }
   if (validator.isEmail(req.body.username)) {
     User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
       if (users.length > 0) {
