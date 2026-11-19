@@ -85,6 +85,12 @@ class TodoServiceTest {
 	}
 
 	@Test
+	void zipBombInSkippedEntryIsRejected() throws IOException {
+		byte[] zip = zip("big.bin", "0".repeat(6 * 1024 * 1024));
+		assertThatThrownBy(() -> service.importTodos(zip)).isInstanceOf(InvalidImportFileException.class);
+	}
+
+	@Test
 	void corruptZipIsRejected() {
 		byte[] data = { 'P', 'K', 3, 4, 0, 0, 0 };
 		assertThatThrownBy(() -> service.importTodos(data)).isInstanceOf(InvalidImportFileException.class);

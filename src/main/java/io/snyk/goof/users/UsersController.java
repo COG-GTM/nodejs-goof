@@ -57,8 +57,8 @@ public class UsersController {
 	}
 
 	@Schema(name = "UserRequest")
-	public record UserRequest(@NotBlank @Size(max = 255) String name, @NotBlank @Size(max = 255) String address,
-			@NotBlank @Size(max = 255) String role) {
+	public record UserRequest(@NotBlank @Size(min = 1, max = 255) String name, @NotBlank @Size(min = 1, max = 255) String address,
+			@NotBlank @Size(min = 1, max = 255) String role) {
 	}
 
 	@Schema(name = "User")

@@ -324,15 +324,15 @@ components:
         name:
           type: string
           maxLength: 255
-          minLength: 0
+          minLength: 1
         address:
           type: string
           maxLength: 255
-          minLength: 0
+          minLength: 1
         role:
           type: string
           maxLength: 255
-          minLength: 0
+          minLength: 1
       required:
       - address
       - name

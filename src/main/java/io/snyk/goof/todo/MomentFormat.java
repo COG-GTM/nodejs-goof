@@ -3,6 +3,7 @@ package io.snyk.goof.todo;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -58,6 +59,18 @@ public final class MomentFormat {
 		}
 		try {
 			return LocalDate.parse(value).atStartOfDay(zone);
+		}
+		catch (DateTimeParseException ignored) {
+			// try the next ISO 8601 form
+		}
+		try {
+			return LocalDate.parse(value, DateTimeFormatter.BASIC_ISO_DATE).atStartOfDay(zone);
+		}
+		catch (DateTimeParseException ignored) {
+			// try the next ISO 8601 form
+		}
+		try {
+			return YearMonth.parse(value).atDay(1).atStartOfDay(zone);
 		}
 		catch (DateTimeParseException ignored) {
 			return null;

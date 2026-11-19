@@ -19,5 +19,5 @@ COPY --from=build /workspace/target/extracted/application/ ./
 USER goof
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s \
-  CMD wget -qO- http://localhost:3001/actuator/health/liveness || exit 1
+  CMD wget -qO- "http://localhost:${PORT:-3001}/actuator/health/liveness" || exit 1
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "org.springframework.boot.loader.launch.JarLauncher"]

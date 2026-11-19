@@ -72,7 +72,12 @@ public class GlobalExceptionHandler {
 		if (ex instanceof ErrorResponse errorResponse) {
 			HttpStatusCode status = errorResponse.getStatusCode();
 			String detail = errorResponse.getBody().getDetail();
-			return build(status, detail != null ? detail : ex.getMessage(), request, List.of());
+			ResponseEntity<ApiError> response = build(status, detail != null ? detail : ex.getMessage(), request,
+					List.of());
+			return ResponseEntity.status(status)
+				.headers(errorResponse.getHeaders())
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(response.getBody());
 		}
 		log.error("Unhandled error on {} {}", request.getMethod(), request.getRequestURI(), ex);
 		return build(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error", request, List.of());

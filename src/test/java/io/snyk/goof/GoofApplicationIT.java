@@ -130,6 +130,10 @@ class GoofApplicationIT {
 		mvc.perform(post("/api/v1/todos").contentType(MediaType.APPLICATION_JSON).content("{}"))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.details[0]").value(containsString("content")));
+		mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/todos"))
+			.andExpect(status().isMethodNotAllowed())
+			.andExpect(header().string("Allow", containsString("GET")))
+			.andExpect(jsonPath("$.status").value(405));
 		mvc.perform(post("/api/v1/todos").contentType(MediaType.APPLICATION_JSON).content("{not json"))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.message").value("Malformed request body"));

@@ -116,12 +116,15 @@ public class TodoService {
 		try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(data))) {
 			ZipEntry entry;
 			boolean empty = true;
+			int total = 0;
 			while ((entry = zip.getNextEntry()) != null) {
 				empty = false;
 				String name = entry.getName().replace('\\', '/');
 				String baseName = name.substring(name.lastIndexOf('/') + 1);
+				byte[] content = readLimited(zip, MAX_BACKUP_BYTES - total);
+				total += content.length;
 				if (!entry.isDirectory() && BACKUP_ENTRY.equals(baseName)) {
-					return new String(readLimited(zip), StandardCharsets.UTF_8);
+					return new String(content, StandardCharsets.UTF_8);
 				}
 			}
 			if (empty) {
@@ -134,13 +137,13 @@ public class TodoService {
 		}
 	}
 
-	private static byte[] readLimited(InputStream in) throws IOException {
+	private static byte[] readLimited(InputStream in, int limit) throws IOException {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		byte[] buffer = new byte[8192];
 		int read;
 		while ((read = in.read(buffer)) != -1) {
-			if (out.size() + read > MAX_BACKUP_BYTES) {
-				throw new IOException("backup.txt exceeds " + MAX_BACKUP_BYTES + " bytes");
+			if (out.size() + read > limit) {
+				throw new IOException("ZIP content exceeds " + MAX_BACKUP_BYTES + " bytes");
 			}
 			out.write(buffer, 0, read);
 		}
