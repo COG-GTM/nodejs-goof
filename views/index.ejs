@@ -9,6 +9,8 @@ strong {font-weight: bold}
 </div>
 
 <div id="list">
+  <p id="todo-count" class="todo-count"><%= todos.length %> <%= todos.length === 1 ? 'todo' : 'todos' %> on the list</p>
+
   <form action="/create" method="post" accept-charset="utf-8">
     <div class="item-new">
       <input class="input" type="text" name="content" />
