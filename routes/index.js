@@ -39,7 +39,7 @@ exports.loginHandler = function (req, res, next) {
     return res.status(401).send()
   }
   if (validator.isEmail(req.body.username)) {
-    User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
+    User.find({ username: String(req.body.username), password: String(req.body.password) }, function (err, users) {
       if (users.length > 0) {
         const redirectPage = req.body.redirectPage
         const session = req.session
