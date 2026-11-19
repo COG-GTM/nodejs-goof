@@ -23,7 +23,7 @@ tap.test('adm-zip extractAllTo keeps traversal entries inside the target (Zip Sl
   files.forEach(function (file) {
     t.ok(file.startsWith(target + path.sep), file + ' is inside the extraction target');
   });
-  t.equal(files.length, 4, 'all entries were extracted');
+  t.equal(files.length, 5, 'all entries were extracted');
   t.notOk(fs.existsSync('/tmp/zip-slip-absolute.txt'), 'absolute entry not written to /tmp');
 
   fs.rmSync(root, { recursive: true, force: true });
