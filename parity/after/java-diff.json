@@ -1,0 +1,56 @@
+{
+  "compared": 39,
+  "mismatches": [
+    {
+      "step": "home after import",
+      "field": "body",
+      "before": {
+        "page_title": [
+          "Patch TODO List"
+        ],
+        "todo_items": [
+          "Travel to Thailand [2017-01-01]",
+          "Bake a cake",
+          "Walk the dog in 2 hours",
+          "Buy milk",
+          "Walk the dog [2h]"
+        ],
+        "todo_items_markup": [
+          "<p>Travel to Thailand [2017-01-01]</p>",
+          "<p>Bake a cake</p>",
+          "<p>Walk the dog in 2 hours</p>",
+          "<p>Buy <strong>milk</strong></p>",
+          "<p>Walk the dog [2h]</p>"
+        ],
+        "form_inputs": [
+          "content",
+          "importFile"
+        ]
+      },
+      "after": {
+        "page_title": [
+          "Patch TODO List"
+        ],
+        "todo_items": [
+          "Travel to Thailand [2017-01-01]",
+          "Walk the dog in 2 hours",
+          "Bake a cake",
+          "Buy milk",
+          "Walk the dog [2h]"
+        ],
+        "todo_items_markup": [
+          "<p>Travel to Thailand [2017-01-01]</p>",
+          "<p>Walk the dog in 2 hours</p>",
+          "<p>Bake a cake</p>",
+          "<p>Buy <strong>milk</strong></p>",
+          "<p>Walk the dog [2h]</p>"
+        ],
+        "form_inputs": [
+          "content",
+          "importFile"
+        ]
+      }
+    }
+  ],
+  "unexpected": []
+}

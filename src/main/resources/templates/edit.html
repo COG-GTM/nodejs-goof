@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${title})}"></head>
+<body>
+  <div id="layout">
+    <h1 id="page-title" th:text="${title}">TODO</h1>
+    <div id="list">
+      <form th:action="@{/create}" method="post" accept-charset="utf-8">
+        <div class="item-new">
+          <input class="input" type="text" name="content" />
+        </div>
+      </form>
+      <div th:each="todo : ${todos}" th:class="${todo.id == current} ? 'item-new' : 'item'">
+        <form th:if="${todo.id == current}" class="update-form" th:action="@{/update/{id}(id=${todo.id})}" method="post" accept-charset="utf-8">
+          <input class="update-input" type="text" name="content" th:value="${todo.content}" />
+        </form>
+        <a th:unless="${todo.id == current}" class="update-link" th:href="@{/edit/{id}(id=${todo.id})}" title="Update this todo item" th:text="${todo.content}"></a>
+        <a th:class="${todo.id == current} ? 'del-btn-edit' : 'del-btn'" th:href="@{/destroy/{id}(id=${todo.id})}" title="Delete this todo item">Delete</a>
+      </div>
+    </div>
+    <div id="layout-footer"></div>
+  </div>
+  <div th:replace="~{fragments/layout :: import-footer}"></div>
+</body>
+</html>

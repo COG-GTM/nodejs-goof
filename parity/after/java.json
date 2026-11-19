@@ -1,0 +1,585 @@
+[
+  {
+    "step": "home (empty)",
+    "method": "GET",
+    "path": "/",
+    "status": 200,
+    "content_type": "text/html",
+    "location": null,
+    "body": {
+      "page_title": [
+        "Patch TODO List"
+      ],
+      "form_inputs": [
+        "content",
+        "importFile"
+      ]
+    }
+  },
+  {
+    "step": "create todo with reminder",
+    "method": "POST",
+    "path": "/create",
+    "status": 302,
+    "content_type": "text/html",
+    "location": "/",
+    "body": "V2FsayB0aGUgZG9nIFsyaF0="
+  },
+  {
+    "step": "create markdown todo",
+    "method": "POST",
+    "path": "/create",
+    "status": 302,
+    "content_type": "text/html",
+    "location": "/",
+    "body": "QnV5ICoqbWlsayoq"
+  },
+  {
+    "step": "create todo with html",
+    "method": "POST",
+    "path": "/create",
+    "status": 302,
+    "content_type": "text/html",
+    "location": "/",
+    "body": "TWVldCA8Yj5Cb2I8L2I+"
+  },
+  {
+    "step": "home (3 todos)",
+    "method": "GET",
+    "path": "/",
+    "status": 200,
+    "content_type": "text/html",
+    "location": null,
+    "body": {
+      "page_title": [
+        "Patch TODO List"
+      ],
+      "todo_items": [
+        "Meet <b>Bob</b>",
+        "Buy milk",
+        "Walk the dog [2h]"
+      ],
+      "todo_items_markup": [
+        "<p>Meet &lt;b&gt;Bob&lt;/b&gt;</p>",
+        "<p>Buy <strong>milk</strong></p>",
+        "<p>Walk the dog [2h]</p>"
+      ],
+      "form_inputs": [
+        "content",
+        "importFile"
+      ]
+    }
+  },
+  {
+    "step": "edit first todo",
+    "method": "GET",
+    "path": "/edit/6aff2f72902e9ea2e11a5d93",
+    "status": 200,
+    "content_type": "text/html",
+    "location": null,
+    "body": {
+      "page_title": [
+        "TODO"
+      ],
+      "todo_items": [
+        "Buy **milk**",
+        "Walk the dog [2h]"
+      ],
+      "todo_items_markup": [
+        "Buy **milk**",
+        "Walk the dog [2h]"
+      ],
+      "edit_value": [
+        "Meet <b>Bob</b>"
+      ],
+      "form_inputs": [
+        "content",
+        "importFile"
+      ]
+    }
+  },
+  {
+    "step": "update first todo",
+    "method": "POST",
+    "path": "/update/{id}",
+    "status": 302,
+    "content_type": null,
+    "location": "/",
+    "body": null
+  },
+  {
+    "step": "home after update",
+    "method": "GET",
+    "path": "/",
+    "status": 200,
+    "content_type": "text/html",
+    "location": null,
+    "body": {
+      "page_title": [
+        "Patch TODO List"
+      ],
+      "todo_items": [
+        "Updated item",
+        "Buy milk",
+        "Walk the dog [2h]"
+      ],
+      "todo_items_markup": [
+        "<p>Updated item</p>",
+        "<p>Buy <strong>milk</strong></p>",
+        "<p>Walk the dog [2h]</p>"
+      ],
+      "form_inputs": [
+        "content",
+        "importFile"
+      ]
+    }
+  },
+  {
+    "step": "destroy first todo",
+    "method": "GET",
+    "path": "/destroy/{id}",
+    "status": 302,
+    "content_type": null,
+    "location": "/",
+    "body": null
+  },
+  {
+    "step": "home after destroy",
+    "method": "GET",
+    "path": "/",
+    "status": 200,
+    "content_type": "text/html",
+    "location": null,
+    "body": {
+      "page_title": [
+        "Patch TODO List"
+      ],
+      "todo_items": [
+        "Buy milk",
+        "Walk the dog [2h]"
+      ],
+      "todo_items_markup": [
+        "<p>Buy <strong>milk</strong></p>",
+        "<p>Walk the dog [2h]</p>"
+      ],
+      "form_inputs": [
+        "content",
+        "importFile"
+      ]
+    }
+  },
+  {
+    "step": "import csv",
+    "method": "POST",
+    "path": "/import",
+    "status": 302,
+    "content_type": null,
+    "location": "/",
+    "body": null
+  },
+  {
+    "step": "home after import",
+    "method": "GET",
+    "path": "/",
+    "status": 200,
+    "content_type": "text/html",
+    "location": null,
+    "body": {
+      "page_title": [
+        "Patch TODO List"
+      ],
+      "todo_items": [
+        "Travel to Thailand [2017-01-01]",
+        "Walk the dog in 2 hours",
+        "Bake a cake",
+        "Buy milk",
+        "Walk the dog [2h]"
+      ],
+      "todo_items_markup": [
+        "<p>Travel to Thailand [2017-01-01]</p>",
+        "<p>Walk the dog in 2 hours</p>",
+        "<p>Bake a cake</p>",
+        "<p>Buy <strong>milk</strong></p>",
+        "<p>Walk the dog [2h]</p>"
+      ],
+      "form_inputs": [
+        "content",
+        "importFile"
+      ]
+    }
+  },
+  {
+    "step": "import without file",
+    "method": "POST",
+    "path": "/import",
+    "status": 200,
+    "content_type": "text/html",
+    "location": null,
+    "body": "No files were uploaded."
+  },
+  {
+    "step": "admin (anonymous)",
+    "method": "GET",
+    "path": "/admin",
+    "status": 302,
+    "content_type": null,
+    "location": "/",
+    "body": null
+  },
+  {
+    "step": "account details (anonymous)",
+    "method": "GET",
+    "path": "/account_details",
+    "status": 302,
+    "content_type": null,
+    "location": "/",
+    "body": null
+  },
+  {
+    "step": "login page",
+    "method": "GET",
+    "path": "/login",
+    "status": 200,
+    "content_type": "text/html",
+    "location": null,
+    "body": {
+      "page_title": [
+        "Admin Access"
+      ],
+      "form_inputs": [
+        "importFile",
+        "password",
+        "redirectPage",
+        "username"
+      ],
+      "redirect_page": [
+        ""
+      ]
+    }
+  },
+  {
+    "step": "login page with redirect",
+    "method": "GET",
+    "path": "/login?redirectPage=/account_details",
+    "status": 200,
+    "content_type": "text/html",
+    "location": null,
+    "body": {
+      "page_title": [
+        "Admin Access"
+      ],
+      "form_inputs": [
+        "importFile",
+        "password",
+        "redirectPage",
+        "username"
+      ],
+      "redirect_page": [
+        "/account_details"
+      ]
+    }
+  },
+  {
+    "step": "login invalid email",
+    "method": "POST",
+    "path": "/login",
+    "status": 401,
+    "content_type": null,
+    "location": null,
+    "body": null
+  },
+  {
+    "step": "login wrong password",
+    "method": "POST",
+    "path": "/login",
+    "status": 401,
+    "content_type": null,
+    "location": null,
+    "body": null
+  },
+  {
+    "step": "login success",
+    "method": "POST",
+    "path": "/login",
+    "status": 302,
+    "content_type": null,
+    "location": "/admin",
+    "body": null
+  },
+  {
+    "step": "admin (logged in)",
+    "method": "GET",
+    "path": "/admin",
+    "status": 200,
+    "content_type": "text/html",
+    "location": null,
+    "body": {
+      "page_title": [
+        "Admin Access Granted"
+      ],
+      "form_inputs": [
+        "importFile"
+      ]
+    }
+  },
+  {
+    "step": "account details (empty)",
+    "method": "GET",
+    "path": "/account_details",
+    "status": 200,
+    "content_type": "text/html",
+    "location": null,
+    "body": {
+      "page_title": [
+        "Account details missing"
+      ],
+      "form_inputs": [
+        "country",
+        "email",
+        "firstname",
+        "lastname",
+        "phone"
+      ]
+    }
+  },
+  {
+    "step": "save account details (valid)",
+    "method": "POST",
+    "path": "/account_details",
+    "status": 200,
+    "content_type": "text/html",
+    "location": null,
+    "body": {
+      "page_title": [
+        "Account details for: John"
+      ],
+      "form_inputs": [
+        "country",
+        "email",
+        "firstname",
+        "lastname",
+        "phone"
+      ],
+      "markers": [
+        "details saved"
+      ]
+    }
+  },
+  {
+    "step": "save account details (invalid phone)",
+    "method": "POST",
+    "path": "/account_details",
+    "status": 200,
+    "content_type": "text/html",
+    "location": null,
+    "body": {
+      "page_title": [
+        "Account details missing"
+      ],
+      "form_inputs": [
+        "country",
+        "email",
+        "firstname",
+        "lastname",
+        "phone"
+      ]
+    }
+  },
+  {
+    "step": "logout",
+    "method": "GET",
+    "path": "/logout",
+    "status": 302,
+    "content_type": null,
+    "location": "/",
+    "body": null
+  },
+  {
+    "step": "admin after logout",
+    "method": "GET",
+    "path": "/admin",
+    "status": 302,
+    "content_type": null,
+    "location": "/",
+    "body": null
+  },
+  {
+    "step": "login with redirectPage",
+    "method": "POST",
+    "path": "/login",
+    "status": 302,
+    "content_type": null,
+    "location": "/account_details",
+    "body": null
+  },
+  {
+    "step": "about_new desktop",
+    "method": "GET",
+    "path": "/about_new?device=Desktop",
+    "status": 200,
+    "content_type": "text/html",
+    "location": null,
+    "body": {
+      "page_title": [
+        "Patch TODO List"
+      ],
+      "h2": [
+        "Vulnerabilities at their best"
+      ],
+      "markers": [
+        "Device string (debug)",
+        "The BESTest todo app evar"
+      ],
+      "device": "Desktop"
+    }
+  },
+  {
+    "step": "about_new mobile",
+    "method": "GET",
+    "path": "/about_new?device=Mobile",
+    "status": 200,
+    "content_type": "text/html",
+    "location": null,
+    "body": {
+      "page_title": [
+        "Patch TODO List"
+      ],
+      "h2": [
+        "Vulnerabilities at their best"
+      ],
+      "markers": [
+        "Device string (debug)",
+        "The BESTest todo app evar"
+      ],
+      "device": "Mobile"
+    }
+  },
+  {
+    "step": "chat list (empty)",
+    "method": "GET",
+    "path": "/chat",
+    "status": 200,
+    "content_type": "application/json",
+    "location": null,
+    "body": []
+  },
+  {
+    "step": "chat add (bad auth)",
+    "method": "PUT",
+    "path": "/chat",
+    "status": 403,
+    "content_type": "application/json",
+    "location": null,
+    "body": {
+      "error": "Access denied",
+      "ok": false
+    }
+  },
+  {
+    "step": "chat add (user)",
+    "method": "PUT",
+    "path": "/chat",
+    "status": 200,
+    "content_type": "application/json",
+    "location": null,
+    "body": {
+      "ok": true
+    }
+  },
+  {
+    "step": "chat add custom icon",
+    "method": "PUT",
+    "path": "/chat",
+    "status": 200,
+    "content_type": "application/json",
+    "location": null,
+    "body": {
+      "ok": true
+    }
+  },
+  {
+    "step": "chat list (2 messages)",
+    "method": "GET",
+    "path": "/chat",
+    "status": 200,
+    "content_type": "application/json",
+    "location": null,
+    "body": [
+      {
+        "icon": "👋",
+        "id": "<masked>",
+        "text": "hi",
+        "timestamp": "<masked>",
+        "userName": "user"
+      },
+      {
+        "icon": "*",
+        "id": "<masked>",
+        "text": "yo",
+        "timestamp": "<masked>",
+        "userName": "user"
+      }
+    ]
+  },
+  {
+    "step": "chat delete (user not allowed)",
+    "method": "DELETE",
+    "path": "/chat",
+    "status": 403,
+    "content_type": "application/json",
+    "location": null,
+    "body": {
+      "error": "Access denied",
+      "ok": false
+    }
+  },
+  {
+    "step": "users list",
+    "method": "GET",
+    "path": "/users",
+    "status": 200,
+    "content_type": "application/json",
+    "location": null,
+    "body": [
+      {
+        "address": "IL",
+        "id": 1,
+        "name": "Liran",
+        "role": "user"
+      }
+    ]
+  },
+  {
+    "step": "users create",
+    "method": "POST",
+    "path": "/users",
+    "status": 200,
+    "content_type": "text/plain",
+    "location": null,
+    "body": "OK"
+  },
+  {
+    "step": "static css",
+    "method": "GET",
+    "path": "/public/css/screen.css",
+    "status": 200,
+    "content_type": "text/css",
+    "location": null,
+    "body": {
+      "length_gt_0": true
+    }
+  },
+  {
+    "step": "static about page",
+    "method": "GET",
+    "path": "/public/about.html",
+    "status": 200,
+    "content_type": "text/html",
+    "location": null,
+    "body": {
+      "markers": [
+        "The BESTest todo app evar"
+      ]
+    }
+  }
+]

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${title})}"></head>
+<body>
+  <div id="layout">
+    <style>strong {font-weight: bold}</style>
+    <h1 id="page-title" th:text="${title}">Admin Access</h1>
+    <div id="list">
+      <form th:action="@{/login}" method="post" accept-charset="utf-8">
+        <div class="item-new" th:unless="${granted}">
+          <center>username</center>
+          <input class="input" type="text" name="username" />
+          <br/>
+          <center>password</center>
+          <input class="input" type="password" name="password" />
+          <center>
+            <input type="hidden" name="redirectPage" th:value="${redirectPage}" />
+            <input type="submit" />
+          </center>
+        </div>
+      </form>
+    </div>
+    <div id="layout-footer"></div>
+  </div>
+  <div th:replace="~{fragments/layout :: import-footer}"></div>
+</body>
+</html>

@@ -1,0 +1,364 @@
+# Contract for the Goof JSON API. Kept in sync with the code by OpenApiContractIT.
+openapi: 3.1.0
+info:
+  title: Goof Todo API
+  description: JSON API of the Goof todo demo application
+  license:
+    name: Apache-2.0
+    identifier: Apache-2.0
+  version: 1.0.0
+servers:
+- url: http://localhost:3001
+  description: Local development
+tags:
+- name: Todos
+  description: Todo list items
+- name: Users
+  description: Account records stored in MySQL
+- name: Chat
+  description: In-memory chat messages
+paths:
+  /api/v1/todos/{id}:
+    get:
+      tags:
+      - Todos
+      summary: Get a todo
+      operationId: getTodo
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Todo"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    put:
+      tags:
+      - Todos
+      summary: Replace the content of a todo
+      operationId: updateTodo
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TodoRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Todo"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    delete:
+      tags:
+      - Todos
+      summary: Delete a todo
+      operationId: deleteTodo
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /api/v1/chat:
+    get:
+      tags:
+      - Chat
+      summary: List chat messages
+      operationId: listChatMessages
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: {}
+    put:
+      tags:
+      - Chat
+      summary: Post a chat message
+      operationId: addChatMessage
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatAddRequest"
+        required: true
+      responses:
+        "200":
+          description: Message added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResult"
+        "403":
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResult"
+    delete:
+      tags:
+      - Chat
+      summary: Delete a chat message (admin only)
+      operationId: deleteChatMessage
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatDeleteRequest"
+        required: true
+      responses:
+        "200":
+          description: Message deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResult"
+        "403":
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResult"
+  /api/v1/users:
+    get:
+      tags:
+      - Users
+      summary: "Get the current account (fixed to id 1, as in the legacy build)"
+      operationId: getCurrentAccount
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      tags:
+      - Users
+      summary: Create a user record
+      operationId: createUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserRequest"
+        required: true
+      responses:
+        "200":
+          description: Saved
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: OK
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /api/v1/todos:
+    get:
+      tags:
+      - Todos
+      summary: "List todos, newest first"
+      operationId: listTodos
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Todo"
+    post:
+      tags:
+      - Todos
+      summary: "Create a todo; a trailing \"in <duration>\" becomes a reminder such\
+        \ as \"[2h]\""
+      operationId: createTodo
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TodoRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Todo"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+components:
+  schemas:
+    TodoRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          maxLength: 10000
+          minLength: 0
+      required:
+      - content
+    ApiError:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+          format: int32
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+        details:
+          type: array
+          items:
+            type: string
+      required:
+      - details
+      - error
+      - message
+      - path
+      - status
+      - timestamp
+    Todo:
+      type: object
+      properties:
+        id:
+          type: string
+        content:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - content
+      - id
+      - updatedAt
+    ChatAddRequest:
+      type: object
+      properties:
+        auth:
+          $ref: "#/components/schemas/Credentials"
+        message:
+          type: object
+          additionalProperties: {}
+    Credentials:
+      type: object
+      properties:
+        name:
+          type: string
+        password:
+          type: string
+    ChatResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        error:
+          type: string
+      required:
+      - ok
+    UserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          minLength: 1
+        address:
+          type: string
+          maxLength: 255
+          minLength: 1
+        role:
+          type: string
+          maxLength: 255
+          minLength: 1
+      required:
+      - address
+      - name
+      - role
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        name:
+          type: string
+        address:
+          type: string
+        role:
+          type: string
+      required:
+      - address
+      - id
+      - name
+      - role
+    ChatDeleteRequest:
+      type: object
+      properties:
+        auth:
+          $ref: "#/components/schemas/Credentials"
+        messageId:
+          type: integer
+          format: int64
