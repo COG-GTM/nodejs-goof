@@ -37,6 +37,8 @@ exports.index = function (req, res, next) {
 exports.loginHandler = function (req, res, next) {
   if (validator.isEmail(req.body.username)) {
     User.find({ username: req.body.username, password: req.body.password }, function (err, users) {
+      if (err) return next(err);
+
       if (users.length > 0) {
         const redirectPage = req.body.redirectPage
         const session = req.session
@@ -189,6 +191,7 @@ exports.create = function (req, res, next) {
 
 exports.destroy = function (req, res, next) {
   Todo.findById(req.params.id, function (err, todo) {
+    if (err) return next(err);
 
     try {
       todo.remove(function (err, todo) {
@@ -217,6 +220,7 @@ exports.edit = function (req, res, next) {
 
 exports.update = function (req, res, next) {
   Todo.findById(req.params.id, function (err, todo) {
+    if (err) return next(err);
 
     todo.content = req.body.content;
     todo.updated_at = Date.now();
