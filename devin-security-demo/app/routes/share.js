@@ -1,5 +1,4 @@
 const express = require('express');
-const { execSync } = require('child_process');
 const db = require('../db');
 
 const router = express.Router();
@@ -15,8 +14,8 @@ router.get('/:token/export', (req, res) => {
   const note = db.findNoteByToken(req.params.token);
   if (!note) return res.status(404).json({ error: 'not found' });
   const format = req.query.format || 'txt';
-  const out = execSync(`echo "${note.title}" | tr -d '\\r' > /tmp/export.${format} && cat /tmp/export.${format}`);
-  res.type('text/plain').send(out);
+  if (format !== 'txt') return res.status(400).json({ error: 'unsupported format' });
+  res.type('text/plain').send(note.title.replace(/\r/g, ''));
 });
 
 module.exports = router;
