@@ -38,3 +38,26 @@ test('files require login', () => withServer(async (base) => {
   const res = await fetch(`${base}/api/files?name=welcome.txt`);
   assert.strictEqual(res.status, 401);
 }));
+
+test('note meta is owner-only and never leaks share tokens to others', () => withServer(async (base) => {
+  const alice = await login(base, 'alice');
+  const mallory = await login(base, 'mallory');
+  const own = await fetch(`${base}/api/notes/1/meta`, { headers: { authorization: `Bearer ${alice}` } });
+  assert.strictEqual(own.status, 200);
+  assert.ok((await own.json()).shareToken);
+  const denied = await fetch(`${base}/api/notes/1/meta`, { headers: { authorization: `Bearer ${mallory}` } });
+  assert.strictEqual(denied.status, 404);
+  assert.strictEqual((await denied.json()).shareToken, undefined);
+}));
+
+test('share export allowlists format and never runs a shell', () => withServer(async (base) => {
+  const fs = require('fs');
+  const marker = `/tmp/pwned-${process.pid}`;
+  const note = await (await fetch(`${base}/api/notes/2`, { headers: { authorization: `Bearer ${await login(base, 'bob')}` } })).json();
+  const ok = await fetch(`${base}/share/${note.shareToken}/export?format=txt`);
+  assert.strictEqual(ok.status, 200);
+  assert.strictEqual(await ok.text(), 'Groceries');
+  const bad = await fetch(`${base}/share/${note.shareToken}/export?format=${encodeURIComponent(`txt;touch ${marker}`)}`);
+  assert.strictEqual(bad.status, 400);
+  assert.strictEqual(fs.existsSync(marker), false);
+}));
