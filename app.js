@@ -28,7 +28,10 @@ const hbs = require('hbs')
 function ejsRender(filePath, data, callback) {
   ejs.renderFile(filePath, Object.assign(Object.create(null), data), {
     views: app.get('views'),
-    cache: app.enabled('view cache')
+    cache: app.enabled('view cache'),
+    delimiter: '%',
+    openDelimiter: '<',
+    closeDelimiter: '>'
   }, callback);
 }
 
