@@ -46,7 +46,17 @@ app.use(session({
 }))
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-app.use(fileUpload());
+// express-fileupload 1.5.x validates Content-Type with a regex that backtracks
+// exponentially on malformed headers; only hand it headers matching the fixed (1.6.0) pattern.
+var SAFE_MULTIPART_TYPE = /^multipart\/[\w'"()+\-_?/:=,.]+(?:; ?[\w'"()+\-_?/:=,.]*)+$/i;
+var upload = fileUpload();
+app.use(function (req, res, next) {
+  var contentType = req.headers['content-type'];
+  if (typeof contentType !== 'string' || !SAFE_MULTIPART_TYPE.test(contentType)) {
+    return next();
+  }
+  upload(req, res, next);
+});
 
 // Routes
 app.use(routes.current_user);
