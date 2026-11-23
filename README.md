@@ -18,8 +18,8 @@ Prerequisites:
 * Docker, if you run the databases in containers as shown below.
 
 ```bash
-docker run -d --rm --name goof-mongo -p 127.0.0.1:27017:27017 mongo:3
-docker run -d --rm --name goof-mysql -p 127.0.0.1:3306:3306 -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=acme mysql:5
+docker run -d --rm --name goof-mongo -p 27017:27017 mongo:3
+docker run -d --rm --name goof-mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=acme mysql:5
 until docker exec goof-mysql mysql -uroot -proot -e 'select 1' acme >/dev/null 2>&1; do sleep 2; done
 
 git clone https://github.com/COG-GTM/nodejs-goof
@@ -27,7 +27,9 @@ cd nodejs-goof
 npm install
 npm start
 ```
-This will run Goof locally, using MongoDB on the default port and listening on port 3001 (http://localhost:3001). The `until` loop waits for MySQL to accept connections: the app connects to MySQL only once at startup, so if it starts too early `/users` stays broken until you restart it. The `mysql:5` image is AMD64 only; on ARM64 hosts add `--platform linux/amd64` to its `docker run` (not tested here). Stop the containers with `docker stop goof-mongo goof-mysql` when you are done; they use the same names and ports as the Compose setup below.
+This will run Goof locally, using MongoDB on the default port and listening on port 3001 (http://localhost:3001). The `until` loop waits for MySQL to accept connections: the app connects to MySQL only once at startup, so if it starts too early `/users` stays broken until you restart it. If the loop has not finished after a minute, check that `docker run` succeeded (for example that port 3306 was free) and look at `docker logs goof-mysql`. The `mysql:5` image is AMD64 only; on ARM64 hosts add `--platform linux/amd64` to its `docker run` (not tested here). Stop the containers with `docker stop goof-mongo goof-mysql` when you are done (`--rm` deletes their data); they use the same names and ports as the Compose setup below.
+
+Run this only on a trusted machine and network: Docker publishes the database ports on all interfaces, MongoDB has no authentication, MySQL uses the hard-coded root password, and the app itself is intentionally vulnerable and listens on all interfaces.
 
 If you have a local MongoDB 3.x install, you can run `mongod &` instead of the `mongo:3` container. To use a MongoDB server on another host or port, set `MONGODB_URI`, for example `MONGODB_URI=mongodb://localhost:27018/express-todo npm start`. Set `PORT` to listen on a port other than 3001.
 
