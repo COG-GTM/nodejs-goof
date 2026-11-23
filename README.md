@@ -11,28 +11,36 @@ This vulnerable app includes the following capabilities to experiment with:
 * [Runtime alerts](#runtime-alerts) for detecting an invocation of vulnerable functions in open source dependencies
 
 ## Running
-```bash
-mongod &
+Prerequisites:
+* Node.js 17 or newer (the npm scripts pass `--openssl-legacy-provider`; the Dockerfile uses Node.js 18).
+* MongoDB 3.x. A current MongoDB release will not work: with MongoDB 7 the app crashes at startup with `TypeError: Cannot read properties of undefined (reading 'length')` in `mongoose-db.js`.
+* MySQL 5.7 on `localhost:3306` with user `root`, password `root` and a database named `acme` (hard-coded in `typeorm-db.js`). Without it the app starts and logs `ECONNREFUSED 127.0.0.1:3306`, but the first request to `/users` crashes the whole process.
+* Docker, if you run the databases in containers as shown below.
 
-git clone https://github.com/snyk-labs/nodejs-goof
+```bash
+docker run -d --rm --name goof-mongo -p 27017:27017 mongo:3
+docker run -d --rm --name goof-mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=acme mysql:5
+until docker exec goof-mysql mysql -uroot -proot -e 'select 1' acme >/dev/null 2>&1; do sleep 2; done
+
+git clone https://github.com/COG-GTM/nodejs-goof
+cd nodejs-goof
 npm install
 npm start
 ```
-This will run Goof locally, using a local mongo on the default port and listening on port 3001 (http://localhost:3001)
+This will run Goof locally, using MongoDB on the default port and listening on port 3001 (http://localhost:3001). The `until` loop waits for MySQL to accept connections: the app connects to MySQL only once at startup, so if it starts too early `/users` stays broken until you restart it. If the loop has not finished after a minute, check that `docker run` succeeded (for example that port 3306 was free) and look at `docker logs goof-mysql`. The `mysql:5` image is AMD64 only; on ARM64 hosts add `--platform linux/amd64` to its `docker run` (not tested here). Stop the containers with `docker stop goof-mongo goof-mysql` when you are done (`--rm` deletes their data); they use the same names and ports as the Compose setup below.
 
-Note: You *have* to use an old version of MongoDB version due to some of these old libraries' database server APIs. MongoDB 3 is known to work ok.
+Run this only on a trusted machine and network: Docker publishes the database ports on all interfaces, MongoDB has no authentication, MySQL uses the hard-coded root password, and the app itself is intentionally vulnerable and listens on all interfaces.
 
-You can also run the MongoDB server individually via Docker, such as:
-
-```sh
-docker run --rm -p 27017:27017 mongo:3
-```
+If you have a local MongoDB 3.x install, you can run `mongod &` instead of the `mongo:3` container. To use a MongoDB server on another host or port, set `MONGODB_URI`, for example `MONGODB_URI=mongodb://localhost:27018/express-todo npm start`. Set `PORT` to listen on a port other than 3001.
 
 ## Running with docker-compose
 ```bash
-docker-compose up --build
-docker-compose down
+docker compose up --build
+docker compose down
 ```
+With Compose v1, use `docker-compose` instead of `docker compose`. Host ports 3001, 9229, 27017 and 3306 must be free.
+
+Known issues in the Compose setup: the pages load, but every HTML form submission (logging in through the form, adding or editing a todo, importing, updating the account) returns HTTP 500 with `TypeError: Busboy is not a constructor`, because the Dockerfile's `npm update` pulls a newer `busboy` than `express-fileupload` 0.0.5 supports. JSON requests such as `curl -H 'Content-Type: application/json' -d '{"username":"admin@snyk.io","password":"SuperSecretPassword"}' localhost:3001/login` still work. A request to `/users` stops the `goof` container, because `typeorm-db.js` connects to MySQL on `localhost` instead of the `good-mysql` service (container `goof-mysql`).
 
 ### Heroku usage
 Goof requires attaching a MongoLab service to be deployed as a Heroku app. 
@@ -47,6 +55,11 @@ To bulk delete the current list of TODO items from the DB run:
 ```bash
 npm run cleanup
 ```
+This needs the legacy `mongo` shell on your `PATH`. MongoDB 6 and later no longer ship it, and `mongosh` does not support MongoDB 3. If MongoDB runs in the `goof-mongo` container (from the commands above or from Compose), run the shell inside it instead:
+```bash
+docker exec goof-mongo mongo express-todo --eval 'db.todos.remove({});'
+```
+Both commands clear the `express-todo` database on the default MongoDB port. If the app uses another MongoDB (`MONGODB_URI`, `MONGOLAB_URI` or a CloudFoundry binding), run the shell against that server and database instead.
 
 ## Exploiting the vulnerabilities
 
