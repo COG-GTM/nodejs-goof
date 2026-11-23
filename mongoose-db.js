@@ -43,24 +43,27 @@ if (mongoCFUri) {
 console.log("Using Mongo URI " + mongoUri);
 
 mongoose.connect(mongoUri, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(seedAdminUser)
   .catch(function (err) {
     console.log('error connecting to MongoDB', err);
   });
 
-User = mongoose.model('User');
-User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
-  if (err) {
-    console.log('error looking up admin user', err);
-    return;
-  }
+function seedAdminUser() {
+  User = mongoose.model('User');
+  User.find({ username: 'admin@snyk.io' }).exec(function (err, users) {
+    if (err) {
+      console.log('error looking up admin user', err);
+      return;
+    }
 
-  console.log(users);
-  if (users.length === 0) {
-    console.log('no admin');
-    new User({ username: 'admin@snyk.io', password: 'SuperSecretPassword' }).save(function (err, user, count) {
-      if (err) {
-        console.log('error saving admin user');
-      }
-    });
-  }
-});
+    console.log(users);
+    if (users.length === 0) {
+      console.log('no admin');
+      new User({ username: 'admin@snyk.io', password: 'SuperSecretPassword' }).save(function (err, user, count) {
+        if (err) {
+          console.log('error saving admin user');
+        }
+      });
+    }
+  });
+}
