@@ -8,9 +8,12 @@
     "url": "https://github.com/Snyk/snyk-todo-list-demo-app/"
   },
   "scripts": {
-    "dev": "NODE_OPTIONS=--openssl-legacy-provider nodemon ./app.js",
-    "start": "NODE_OPTIONS=--openssl-legacy-provider node app.js",
+    "dev": "NODE_OPTIONS=--openssl-legacy-provider nodemon --ext ts --ignore dist --exec 'tsc && node dist/app.js'",
+    "prestart": "npm run build:ts",
+    "start": "NODE_OPTIONS=--openssl-legacy-provider node dist/app.js",
     "build": "browserify -r jquery > public/js/bundle.js",
+    "build:ts": "tsc",
+    "typecheck": "tsc --noEmit",
     "cleanup": "mongo express-todo --eval 'db.todos.remove({});'",
     "test": "snyk test"
   },
@@ -49,9 +52,22 @@
     "validator": "^13.5.2"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.4.34",
+    "@types/body-parser": "^1.19.6",
+    "@types/errorhandler": "^1.5.3",
+    "@types/express": "^4.17.25",
+    "@types/express-session": "^1.19.0",
+    "@types/lodash": "^4.17.27",
+    "@types/marked": "^0.3.0",
+    "@types/method-override": "^3.0.0",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^20.19.43",
+    "@types/validator": "^13.15.10",
     "browserify": "^13.1.1",
     "nodemon": "^2.0.7",
-    "snyk": "^1.244.0"
+    "snyk": "^1.244.0",
+    "typescript": "^5.6.3"
   },
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "main": "dist/app.js"
 }

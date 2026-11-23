@@ -108,7 +108,7 @@ curl -X 'POST' -H 'Content-Type: application/json' --data-binary "{\"email\": \"
 #### NoSQL injection
 
 A POST request to `/login` will allow for authentication and signing-in to the system as an administrator user.
-It works by exposing `loginHandler` as a controller in `routes/index.js` and uses a MongoDB database and the `User.find()` query to look up the user's details (email as a username and password). One issue is that it indeed stores passwords in plaintext and not hashing them. However, there are other issues in play here.
+It works by exposing `loginHandler` as a controller in `routes/index.ts` and uses a MongoDB database and the `User.find()` query to look up the user's details (email as a username and password). One issue is that it indeed stores passwords in plaintext and not hashing them. However, there are other issues in play here.
 
 
 We can send a request with an incorrect password to see that we get a failed attempt
@@ -144,11 +144,11 @@ One fault here is that the `redirectPage` is rendered as raw HTML and not proper
 http://localhost:3001/login?redirectPage="><script>alert(1)</script>
 ```
 
-To exploit the open redirect, simply provide a URL such as `redirectPage=https://google.com` which exploits the fact that the code doesn't enforce local URLs in `index.js:72`.
+To exploit the open redirect, simply provide a URL such as `redirectPage=https://google.com` which exploits the fact that the code doesn't enforce local URLs in `routes/index.ts:66`.
 
 #### Hardcoded values - session information
 
-The application initializes a cookie-based session on `app.js:40` as follows:
+The application initializes a cookie-based session on `app.ts:43` as follows:
 
 ```js
 app.use(session({
@@ -172,7 +172,7 @@ However, that still maintains the secret information inside another file, and Sn
 
 Another case we can discuss here in session management, is that the cookie setting is initialized with `secure: true` which means it will only be transmitted over HTTPS connections. However, there's no `httpOnly` flag set to true, which means that the default false value of it makes the cookie accessible via JavaScript. Snyk Code highlights this potential security misconfiguration so we can fix it. We can note that Snyk Code shows this as a quality information, and not as a security error.
 
-Snyk Code will also find hardcoded secrets in source code that isn't part of the application logic, such as `tests/` or `examples/` folders. We have a case of that in this application with the `tests/authentication.component.spec.js` file. In the finding, Snyk Code will tag it as `InTest`, `Tests`, or `Mock`, which help us easily triage it and indeed ignore this finding as it isn't actually a case of information exposure.
+Snyk Code will also find hardcoded secrets in source code that isn't part of the application logic, such as `tests/` or `examples/` folders. We have a case of that in this application with the `tests/authentication.component.spec.ts` file. In the finding, Snyk Code will tag it as `InTest`, `Tests`, or `Mock`, which help us easily triage it and indeed ignore this finding as it isn't actually a case of information exposure.
 
 ## Docker Image Scanning
 
@@ -192,7 +192,7 @@ snyk monitor --docker node:6-stretch
 
 Snyk provides the ability to monitor application runtime behavior and detect an invocation of a function is known to be vulnerable and used within open source dependencies that the application makes use of.
 
-The agent is installed and initialized in [app.js](./app.js#L5).
+The agent is installed and initialized in [app.ts](./app.ts#L5).
 
 For the agent to report back to your snyk account on the vulnerabilities it detected it needs to know which project on Snyk to associate with the monitoring. Due to that, we need to provide it with the project id through an environment variable `SNYK_PROJECT_ID`
 
