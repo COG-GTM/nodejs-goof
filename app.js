@@ -25,18 +25,18 @@ var dustHelpers = require('dustjs-helpers');
 var cons = require('consolidate');
 const hbs = require('hbs')
 
-function ejsData(options, extra) {
-  var data = Object.assign(Object.create(null), options, extra);
-  data.settings = Object.assign(Object.create(null), options.settings);
-  return data;
+function ejsRender(filePath, data, callback) {
+  ejs.renderFile(filePath, Object.assign(Object.create(null), data), {
+    views: app.get('views'),
+    cache: app.enabled('view cache')
+  }, callback);
 }
 
 function ejsLayoutEngine(filePath, options, callback) {
   var layoutFile;
-  var locals = ejsData(options, {
+  ejsRender(filePath, Object.assign({}, options, {
     layout: function (view) { layoutFile = view; }
-  });
-  ejs.renderFile(filePath, locals, function (err, html) {
+  }), function (err, html) {
     if (err || !layoutFile) {
       return callback(err, html);
     }
@@ -44,7 +44,7 @@ function ejsLayoutEngine(filePath, options, callback) {
     if (!path.extname(layoutPath)) {
       layoutPath += '.ejs';
     }
-    ejs.renderFile(layoutPath, ejsData(options, { body: html }), callback);
+    ejsRender(layoutPath, Object.assign({}, options, { body: html }), callback);
   });
 }
 
