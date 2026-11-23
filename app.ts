@@ -3,31 +3,31 @@
  */
 
 // mongoose setup
-require('./mongoose-db');
-require('./typeorm-db')
+import './mongoose-db';
+import './typeorm-db'
 
-var st = require('st');
-var crypto = require('crypto');
-var express = require('express');
-var http = require('http');
-var path = require('path');
-var ejsEngine = require('ejs-locals');
-var bodyParser = require('body-parser');
-var session = require('express-session')
-var methodOverride = require('method-override');
-var logger = require('morgan');
-var errorHandler = require('errorhandler');
-var optional = require('optional');
-var marked = require('marked');
-var fileUpload = require('express-fileupload');
-var dust = require('dustjs-linkedin');
-var dustHelpers = require('dustjs-helpers');
-var cons = require('consolidate');
-const hbs = require('hbs')
+import st from 'st';
+import crypto from 'crypto';
+import express from 'express';
+import http from 'http';
+import path from 'path';
+import ejsEngine from 'ejs-locals';
+import bodyParser from 'body-parser';
+import session from 'express-session'
+import methodOverride from 'method-override';
+import logger from 'morgan';
+import errorHandler from 'errorhandler';
+import optional from 'optional';
+import marked from 'marked';
+import fileUpload from 'express-fileupload';
+import dust from 'dustjs-linkedin';
+import dustHelpers from 'dustjs-helpers';
+import cons from 'consolidate';
+import hbs from 'hbs'
 
 var app = express();
-var routes = require('./routes');
-var routesUsers = require('./routes/users.js')
+import * as routes from './routes';
+import routesUsers from './routes/users'
 
 // all environments
 app.set('port', process.env.PORT || 3001);
@@ -35,7 +35,8 @@ app.engine('ejs', ejsEngine);
 app.engine('dust', cons.dust);
 app.engine('hbs', hbs.__express);
 cons.dust.helpers = dustHelpers;
-app.set('views', path.join(__dirname, 'views'));
+// Compiled output runs from dist/, so templates live one level up.
+app.set('views', path.join(__dirname, '..', 'views'));
 app.set('view engine', 'ejs');
 app.use(logger('dev'));
 app.use(methodOverride());

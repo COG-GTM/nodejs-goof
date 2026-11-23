@@ -1,7 +1,7 @@
-var typeorm = require("typeorm");
-var EntitySchema = typeorm.EntitySchema;
+import * as typeorm from "typeorm";
+import Users, { UserEntity } from "./entity/Users";
 
-const Users = require("./entity/Users")
+var EntitySchema = typeorm.EntitySchema;
 
 typeorm.createConnection({
   name: "mysql",
@@ -20,7 +20,7 @@ typeorm.createConnection({
 
   const dbConnection = typeorm.getConnection('mysql')
 
-  const repo = dbConnection.getRepository("Users")
+  const repo = dbConnection.getRepository<UserEntity>("Users")
   return repo
 }).then((repo) => {
 
@@ -40,7 +40,7 @@ typeorm.createConnection({
   ];
 
   return Promise.all(inserts)
-}).catch((err) => {
+}).catch((err: unknown) => {
   console.error('failed connecting and seeding users to the MySQL database')
   console.error(err)
 })

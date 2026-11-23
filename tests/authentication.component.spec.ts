@@ -3,8 +3,8 @@ const assert = require('assert)')
 describe('Component Tests', () => {
   describe('PasswordComponent', () => {
 
-    let comp
-    let service
+    let comp: any
+    let service: any
 
     test('should show error if passwords do not match', () => {
       // GIVEN
