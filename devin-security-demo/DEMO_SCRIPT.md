@@ -11,6 +11,8 @@
 3. Open these tabs in order: the repo folder, the completed scan, the findings list, the chain finding, the fix session, the fix PR, the Threats page.
 4. Check the results against `ANSWER_KEY.md`. The exact titles and counts will differ from run to run; never promise a number.
 
+**What the rehearsal scan found** (Normal effort, 7 findings): 2 critical (command injection in share export; hardcoded signing secret lets anyone forge an admin login), 3 high (share-token leak from the metadata endpoint; path traversal in file download; plaintext seeded passwords), 1 medium (any member can delete any user), 1 low (non-constant-time token compare). It did **not** flag the old lodash `_.merge` (CVE-2020-8203). That gap sets up step 6.
+
 ## The demo
 
 ### 1. Set the scene (1 min) — tab: repo folder
@@ -39,7 +41,8 @@
 - "Nothing merges on its own. Branch protection, CODEOWNERS and your reviewers all still apply."
 
 ### 6. Threats (1 min) — Threats page
-- "When a new CVE drops, you don't wait for the next scan. Add it as a threat, for example 'lodash prototype pollution, CVE-2020-8203', and click Scan with Devin across the repos you pick."
+- "A scan reasons about how your app works. When a specific CVE drops, you want a targeted answer: are we affected? Add it as a threat, for example 'lodash prototype pollution, CVE-2020-8203', and click Scan with Devin across the repos you pick."
+- (Acme Notes uses lodash 4.17.15 with `_.merge` on request bodies in `routes/users.js`, so this repo is affected.)
 - "Auto-triage can do that for every new threat Cognition publishes."
 
 ### 7. Close (1 min)
