@@ -59,7 +59,7 @@ This needs the legacy `mongo` shell on your `PATH`. MongoDB 6 and later no longe
 ```bash
 docker exec goof-mongo mongo express-todo --eval 'db.todos.remove({});'
 ```
-Both commands clear the `express-todo` database on the default MongoDB port. If you set `MONGODB_URI`, run the shell against that server and database instead.
+Both commands clear the `express-todo` database on the default MongoDB port. If the app uses another MongoDB (`MONGODB_URI`, `MONGOLAB_URI` or a CloudFoundry binding), run the shell against that server and database instead.
 
 ## Exploiting the vulnerabilities
 
