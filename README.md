@@ -18,15 +18,16 @@ Prerequisites:
 * Docker, if you run the databases in containers as shown below.
 
 ```bash
-docker run -d --rm --name goof-mongo -p 27017:27017 mongo:3
-docker run -d --rm --name goof-mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=acme mysql:5
+docker run -d --rm --name goof-mongo -p 127.0.0.1:27017:27017 mongo:3
+docker run -d --rm --name goof-mysql -p 127.0.0.1:3306:3306 -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=acme mysql:5
+until docker exec goof-mysql mysql -uroot -proot -e 'select 1' acme >/dev/null 2>&1; do sleep 2; done
 
 git clone https://github.com/COG-GTM/nodejs-goof
 cd nodejs-goof
 npm install
 npm start
 ```
-This will run Goof locally, using MongoDB on the default port and listening on port 3001 (http://localhost:3001). MySQL may take a few seconds to accept connections after its container starts; start the app once it is ready.
+This will run Goof locally, using MongoDB on the default port and listening on port 3001 (http://localhost:3001). The `until` loop waits for MySQL to accept connections: the app connects to MySQL only once at startup, so if it starts too early `/users` stays broken until you restart it. The `mysql:5` image is AMD64 only; on ARM64 hosts add `--platform linux/amd64` to its `docker run` (not tested here). Stop the containers with `docker stop goof-mongo goof-mysql` when you are done; they use the same names and ports as the Compose setup below.
 
 If you have a local MongoDB 3.x install, you can run `mongod &` instead of the `mongo:3` container. To use a MongoDB server on another host or port, set `MONGODB_URI`, for example `MONGODB_URI=mongodb://localhost:27018/express-todo npm start`. Set `PORT` to listen on a port other than 3001.
 
@@ -37,7 +38,7 @@ docker compose down
 ```
 With Compose v1, use `docker-compose` instead of `docker compose`. Host ports 3001, 9229, 27017 and 3306 must be free.
 
-Known issues in the Compose setup: the pages and `/login` work, but adding a todo returns HTTP 500 (`TypeError: Busboy is not a constructor`, because the Dockerfile's `npm update` pulls a newer `busboy` than `express-fileupload` 0.0.5 supports), and a request to `/users` stops the `goof` container because `typeorm-db.js` connects to MySQL on `localhost` instead of the `goof-mysql` service.
+Known issues in the Compose setup: the pages load, but every HTML form submission (logging in through the form, adding or editing a todo, importing, updating the account) returns HTTP 500 with `TypeError: Busboy is not a constructor`, because the Dockerfile's `npm update` pulls a newer `busboy` than `express-fileupload` 0.0.5 supports. JSON requests such as `curl -H 'Content-Type: application/json' -d '{"username":"admin@snyk.io","password":"SuperSecretPassword"}' localhost:3001/login` still work. A request to `/users` stops the `goof` container, because `typeorm-db.js` connects to MySQL on `localhost` instead of the `good-mysql` service (container `goof-mysql`).
 
 ### Heroku usage
 Goof requires attaching a MongoLab service to be deployed as a Heroku app. 
@@ -56,6 +57,7 @@ This needs the legacy `mongo` shell on your `PATH`. MongoDB 6 and later no longe
 ```bash
 docker exec goof-mongo mongo express-todo --eval 'db.todos.remove({});'
 ```
+Both commands clear the `express-todo` database on the default MongoDB port. If you set `MONGODB_URI`, run the shell against that server and database instead.
 
 ## Exploiting the vulnerabilities
 
