@@ -155,7 +155,7 @@ exports.create = function (req, res, next) {
   var item = req.body.content;
   var imgRegex = /\!\[alt text\]\((http.*)\s\".*/;
   if (typeof (item) == 'string' && item.match(imgRegex)) {
-    var url = item.match(imgRegex)[1];
+    var url = item.match(imgRegex)[1].trim();
     console.log('found img: ' + url);
 
     if (validator.isURL(url, { protocols: ['http', 'https'], require_protocol: true })) {
