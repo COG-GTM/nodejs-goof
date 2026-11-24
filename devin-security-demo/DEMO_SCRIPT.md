@@ -10,6 +10,12 @@
 2. On that scan, click **Fix with Devin** on the chained "share export" finding so a fix PR already exists.
 3. Open these tabs in order: the repo folder, the completed scan, the findings list, the chain finding, the fix session, the fix PR, the Threats page.
 4. Check the results against `ANSWER_KEY.md`. The exact titles and counts will differ from run to run; never promise a number.
+5. Don't merge [PR #1200](https://github.com/COG-GTM/nodejs-goof/pull/1200) or [PR #1201](https://github.com/COG-GTM/nodejs-goof/pull/1201). Leaving them open keeps the app vulnerable on its branch, so the demo can be rerun.
+
+**Rehearsal links (presenter only; don't show IDs on slides):**
+- Completed scan: https://devin-gtm.devinenterprise.com/code-scan/799e34077b244486b73b754a563b45fb
+- Fix PR from Fix with Devin: https://github.com/COG-GTM/nodejs-goof/pull/1201 (owner check on `/meta`, no shell in export, 2 regression tests; 5/5 tests pass)
+- Demo app: https://github.com/COG-GTM/nodejs-goof/tree/devin/task-1-devin-security-demo/devin-security-demo/app
 
 **What the rehearsal scan found** (Normal effort, 7 findings): 2 critical (command injection in share export; hardcoded signing secret lets anyone forge an admin login), 3 high (share-token leak from the metadata endpoint; path traversal in file download; plaintext seeded passwords), 1 medium (any member can delete any user), 1 low (non-constant-time token compare). It did **not** flag the old lodash `_.merge` (CVE-2020-8203). That gap sets up step 6.
 
@@ -38,6 +44,7 @@
 ### 5. Fix with Devin (3 min) — fix session, then PR
 - "From any finding, Fix with Devin starts a session that writes the fix, runs the tests, and opens a PR."
 - Show the PR diff: the owner check on `/meta` and the export no longer building a shell command.
+- Point at the two new tests: "It proved the attack no longer works, and those tests fail on the old code."
 - "Nothing merges on its own. Branch protection, CODEOWNERS and your reviewers all still apply."
 
 ### 6. Threats (1 min) — Threats page
