@@ -8,7 +8,7 @@ function mac(payload) {
 
 function sign(userId, now = Date.now()) {
   const iat = Math.floor(now / 1000);
-  const payload = Buffer.from(JSON.stringify({ sub: userId, iat, exp: iat + sessionTtlSeconds })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({ sub: userId, iat, exp: Math.ceil(now / 1000) + sessionTtlSeconds })).toString('base64url');
   return `${payload}.${mac(payload)}`;
 }
 
