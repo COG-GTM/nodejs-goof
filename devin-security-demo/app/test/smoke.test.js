@@ -3,6 +3,7 @@ const assert = require('node:assert');
 const crypto = require('node:crypto');
 
 process.env.SESSION_SECRET = crypto.randomBytes(32).toString('hex');
+process.env.SESSION_TTL_SECONDS = '3600';
 const app = require('../server');
 const { sign } = require('../auth');
 
@@ -47,6 +48,11 @@ test('token forged with the old hardcoded secret is rejected', () => withServer(
   const mac = crypto.createHmac('sha256', 'acme-notes-dev-secret-2019').update('1').digest('hex');
   const res = await fetch(`${base}/api/notes`, { headers: { authorization: `Bearer 1.${mac}` } });
   assert.strictEqual(res.status, 401);
+
+  const claims = Buffer.from(JSON.stringify({ sub: 1, iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64url');
+  const oldKeyMac = crypto.createHmac('sha256', 'acme-notes-dev-secret-2019').update(claims).digest('base64url');
+  const res2 = await fetch(`${base}/api/notes`, { headers: { authorization: `Bearer ${claims}.${oldKeyMac}` } });
+  assert.strictEqual(res2.status, 401);
 }));
 
 test('expired token is rejected', () => withServer(async (base) => {
