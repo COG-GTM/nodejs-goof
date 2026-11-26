@@ -1,17 +1,36 @@
 const crypto = require('crypto');
-const { sessionSecret } = require('./config');
+const { sessionSecret, sessionTtlSeconds } = require('./config');
 const db = require('./db');
 
-function sign(userId) {
-  const mac = crypto.createHmac('sha256', sessionSecret).update(String(userId)).digest('hex');
-  return `${userId}.${mac}`;
+function mac(payload) {
+  return crypto.createHmac('sha256', sessionSecret).update(payload).digest('base64url');
 }
 
-function verify(token) {
-  if (!token) return null;
-  const [userId, mac] = token.split('.');
-  const expected = crypto.createHmac('sha256', sessionSecret).update(String(userId)).digest('hex');
-  return mac === expected ? db.findUserById(userId) : null;
+function sign(userId, now = Date.now()) {
+  const iat = Math.floor(now / 1000);
+  const payload = Buffer.from(JSON.stringify({ sub: userId, iat, exp: iat + sessionTtlSeconds })).toString('base64url');
+  return `${payload}.${mac(payload)}`;
+}
+
+function verify(token, now = Date.now()) {
+  if (typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [payload, sig] = parts;
+  const expected = Buffer.from(mac(payload));
+  const given = Buffer.from(sig);
+  if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) return null;
+
+  let claims;
+  try {
+    claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
+  const nowSeconds = Math.floor(now / 1000);
+  if (!Number.isInteger(claims.iat) || !Number.isInteger(claims.exp)) return null;
+  if (claims.exp <= nowSeconds || claims.iat > nowSeconds + 60) return null;
+  return db.findUserById(claims.sub) || null;
 }
 
 function requireUser(req, res, next) {
