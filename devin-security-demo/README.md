@@ -12,6 +12,11 @@ It is deliberately vulnerable. Never deploy it.
 ```bash
 cd devin-security-demo/app
 npm install
-npm test          # 3 smoke tests
+npm test          # smoke tests (sets its own random SESSION_SECRET)
+export SESSION_SECRET="$(openssl rand -hex 32)"   # required; the server refuses to start without it
 npm start         # http://localhost:3000, users alice/bob/mallory, password <name>123
 ```
+
+Session tokens are signed with `SESSION_SECRET` (at least 32 characters) and expire after
+`SESSION_TTL_SECONDS` (default 3600). Changing the secret revokes every issued token.
+
