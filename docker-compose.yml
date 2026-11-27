@@ -6,7 +6,7 @@ services:
     environment:
       - DOCKER=1
       - MYSQL_HOST=good-mysql
-      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD}
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - ADMIN_PASSWORD
       - SESSION_SECRET
       - CHAT_USER_PASSWORD
@@ -26,7 +26,7 @@ services:
     container_name: goof-mysql
     image: mysql:8.4
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: acme
     ports:
       - "3306:3306"

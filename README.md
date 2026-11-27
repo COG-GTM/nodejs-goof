@@ -36,11 +36,13 @@ docker run --rm -p 27017:27017 mongo:7
 ```
 
 ## Running with docker-compose
-`MYSQL_ROOT_PASSWORD` is required (export it or put it in a `.env` file); `ADMIN_PASSWORD`, `CHAT_USER_PASSWORD` and `SESSION_SECRET` are passed through when set.
+`MYSQL_ROOT_PASSWORD` is required (export it or put it in a `.env` file; the MySQL container refuses to start without it). `ADMIN_PASSWORD`, `CHAT_USER_PASSWORD` and `SESSION_SECRET` are passed through when set. Choose your own values; do not reuse example passwords.
 
 If you previously ran Goof with the old `mongo:3` / `mysql:5` images, remove their volumes first (`docker-compose down -v`); the newer database images cannot start on those data files.
 ```bash
-MYSQL_ROOT_PASSWORD=change-me ADMIN_PASSWORD=change-me docker-compose up --build
+export MYSQL_ROOT_PASSWORD="$(openssl rand -hex 16)" ADMIN_PASSWORD="$(openssl rand -hex 16)"
+echo "admin password: $ADMIN_PASSWORD"
+docker-compose up --build
 docker-compose down
 ```
 
@@ -59,6 +61,8 @@ npm run cleanup
 ```
 
 ## Exploiting the vulnerabilities
+
+> Note: dependency upgrades and code fixes on this branch remediate the vulnerabilities below (e.g. `st` was removed and `marked` sanitizes output); check out an earlier commit to reproduce them.
 
 This app uses npm dependencies holding known vulnerabilities,
 as well as insecure code that introduces code-level vulnerabilities.
