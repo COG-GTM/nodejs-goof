@@ -145,9 +145,6 @@
             "type": "SUPPORTED"
           }
         ]
-      },
-      "automationDetails": {
-        "id": "Snyk/Code/2026-11-27T06:17:38Z"
       }
     }
   ]
