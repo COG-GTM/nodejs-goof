@@ -54,6 +54,8 @@ app.use(helmet({
 var limiter = routes.limiter;
 app.use(logger('dev'));
 app.use(methodOverride());
+// Static assets are served before sessions so they never create session entries.
+app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use(session({
   secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
   name: 'connect.sid',
@@ -74,7 +76,7 @@ app.use(function (req, res, next) {
 });
 app.use('/import', multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 1024 * 1024, files: 1 }
+  limits: { fileSize: 1024 * 1024, files: 1, fields: 5, fieldSize: 1024, parts: 6 }
 }).single('importFile'));
 // /chat authenticates with credentials in the JSON body, not the session cookie.
 app.use(lusca.csrf({ blocklist: ['/chat'] }));
@@ -84,8 +86,6 @@ app.use(routes.current_user);
 app.use(routes.router);
 app.use('/users', limiter, routesUsers)
 
-// Static
-app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // Markdown output with raw HTML escaped
 app.locals.marked = renderMarkdown;
