@@ -6,6 +6,7 @@ strong {font-weight: bold}
 
 <div id="list">
   <form action="/login" method="post" accept-charset="utf-8">
+    <input type="hidden" name="_csrf" value="<%= _csrf %>" />
     <% if( granted == false ){ %>
     <div class="item-new">
       <center>username</center>
@@ -14,7 +15,7 @@ strong {font-weight: bold}
       <center>password</center>
       <input class="input" type="password" name="password" />
       <center>
-      <input type="hidden" name="redirectPage" value="<%- redirectPage %>" />
+      <input type="hidden" name="redirectPage" value="<%= redirectPage %>" />
       <input type="submit">
       </center>
     </div>
