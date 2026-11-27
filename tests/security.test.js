@@ -37,9 +37,9 @@ test('markdown escapes raw HTML and unsafe links', () => {
 })
 
 test('markdown keeps relative links and blocks obfuscated schemes', () => {
-  const html = renderMarkdown('[a](docs/page.html) ![i](img/p.png) [b](JaVaScRiPt:alert(1)) [c](//evil.com) [d](/\\evil.com) [e](data:text/html,x)')
+  const html = renderMarkdown('[a](docs/page.html) ![i](img/p.png) [b](JaVaScRiPt:alert(1)) [c](//evil.com) [d](/\\evil.com) [e](data:text/html,x) [f](javascript&colon;alert(1))')
   assert.match(html, /href="docs\/page.html"/)
   assert.match(html, /src="img\/p.png"/)
   assert.doesNotMatch(html, /(href|src)="(?!docs|img|#)/)
-  assert.strictEqual((html.match(/href="#"/g) || []).length, 4)
+  assert.strictEqual((html.match(/href="#"/g) || []).length, 5)
 })
