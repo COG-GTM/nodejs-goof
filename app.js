@@ -46,7 +46,7 @@ if (isProduction && !directTls) {
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
-      imgSrc: ["'self'", 'data:', 'https:'],
+      imgSrc: ["'self'", 'data:', 'https:'].concat(isProduction || directTls ? [] : ['http:']),
       upgradeInsecureRequests: isProduction || directTls ? [] : null
     }
   }
