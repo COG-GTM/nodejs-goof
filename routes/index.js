@@ -13,6 +13,7 @@ var express = require('express');
 var { rateLimit } = require('express-rate-limit');
 
 var MAX_IMPORT_BYTES = 1024 * 1024;
+var MAX_IMPORT_LINES = 1000;
 
 exports.index = async function (req, res, next) {
   try {
@@ -37,7 +38,7 @@ exports.loginHandler = async function (req, res, next) {
     var user = await User.findOne({ username: { $eq: String(username) } })
       .setOptions({ sanitizeFilter: true })
       .exec();
-    if (user && security.verifyPassword(password, user.password)) {
+    if (user && await security.verifyPassword(password, user.password)) {
       return adminLoginSuccess(req.body.redirectPage, req, username, res)
     }
     return res.status(401).send()
@@ -140,7 +141,12 @@ function parse(todo) {
     var time = t.slice(reminder + remindToken.length);
     time = time.replace(/\n$/, '');
 
-    var period = hms(time);
+    var period;
+    try {
+      period = hms(time);
+    } catch (e) {
+      period = undefined;
+    }
 
     console.log('period: ' + period);
 
@@ -163,29 +169,29 @@ function isHttpUrl(value) {
 }
 
 exports.create = async function (req, res, next) {
-  var item = req.body.content;
-  if (typeof item !== 'string') {
-    return res.status(400).send('Invalid content');
-  }
-  var imgRegex = /!\[alt text\]\((http\S*)\s".*/;
-  var imgMatch = item.match(imgRegex);
-  if (imgMatch) {
-    var url = imgMatch[1];
-    console.log('found img: %s', url);
-
-    if (isHttpUrl(url)) {
-      // execFile passes the URL as a single argument; no shell is involved.
-      execFile('identify', [url], function (err, stdout, stderr) {
-        if (err !== null) {
-          console.log('Error (' + err + '):' + stderr);
-        }
-      });
-    }
-  } else {
-    item = parse(item);
-  }
-
   try {
+    var item = req.body.content;
+    if (typeof item !== 'string') {
+      return res.status(400).send('Invalid content');
+    }
+    var imgRegex = /!\[alt text\]\((http\S*)\s".*/;
+    var imgMatch = item.match(imgRegex);
+    if (imgMatch) {
+      var url = imgMatch[1];
+      console.log('found img: %s', url);
+
+      if (isHttpUrl(url) && !url.includes('\0')) {
+        // execFile passes the URL as a single argument; no shell is involved.
+        execFile('identify', [url], function (err, stdout, stderr) {
+          if (err !== null) {
+            console.log('Error (' + err + '):' + stderr);
+          }
+        });
+      }
+    } else {
+      item = parse(item);
+    }
+
     var todo = await new Todo({
       content: item,
       updated_at: Date.now(),
@@ -250,7 +256,7 @@ function isBlank(str) {
 }
 
 function importLines(data) {
-  var lines = data.split('\n');
+  var lines = data.split('\n').slice(0, MAX_IMPORT_LINES);
   var saves = [];
   lines.forEach(function (line) {
     var parts = line.split(',');
@@ -296,10 +302,10 @@ exports.import = function (req, res, next) {
       if (err) {
         return res.status(400).send('Invalid zip file');
       }
-      done(entry ? entry.toString('ascii') : 'No backup.txt file found');
+      done(entry ? entry.toString('utf8') : 'No backup.txt file found');
     });
   } else {
-    done(fileData.toString('ascii'));
+    done(fileData.toString('utf8'));
   }
 };
 

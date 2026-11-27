@@ -38,10 +38,19 @@ app.engine('hbs', viewEngines.handlebars);
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 app.disable('x-powered-by');
-if (isProduction) {
+var directTls = Boolean(process.env.TLS_KEY_FILE && process.env.TLS_CERT_FILE);
+// Behind a reverse proxy, trust its X-Forwarded-For so rate limits key on the real client.
+if (isProduction && !directTls) {
   app.set('trust proxy', 1);
 }
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      imgSrc: ["'self'", 'data:', 'https:'],
+      upgradeInsecureRequests: isProduction || directTls ? [] : null
+    }
+  }
+}));
 var limiter = routes.limiter;
 app.use(logger('dev'));
 app.use(methodOverride());
@@ -59,6 +68,10 @@ app.use(session({
 }))
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
+app.use(function (req, res, next) {
+  req.body = req.body || {};
+  next();
+});
 app.use('/import', multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 1024 * 1024, files: 1 }
@@ -72,7 +85,7 @@ app.use(routes.router);
 app.use('/users', limiter, routesUsers)
 
 // Static
-app.use('/public', limiter, express.static(path.join(__dirname, 'public')));
+app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // Markdown output with raw HTML escaped
 app.locals.marked = renderMarkdown;
