@@ -39,9 +39,9 @@ docker run --rm -p 27017:27017 mongo:7
 `MYSQL_ROOT_PASSWORD` is required (export it or put it in a `.env` file; the MySQL container refuses to start without it). `ADMIN_PASSWORD`, `CHAT_USER_PASSWORD` and `SESSION_SECRET` are passed through when set. Choose your own values; do not reuse example passwords.
 
 If you previously ran Goof with the old `mongo:3` / `mysql:5` images, remove their volumes first (`docker-compose down -v`); the newer database images cannot start on those data files.
+MySQL applies `MYSQL_ROOT_PASSWORD` only when it initializes its volume, so generate the values once and keep them in `.env` (git- and docker-ignored); the admin password is in that file.
 ```bash
-export MYSQL_ROOT_PASSWORD="$(openssl rand -hex 16)" ADMIN_PASSWORD="$(openssl rand -hex 16)"
-echo "admin password: $ADMIN_PASSWORD"
+[ -f .env ] || printf 'MYSQL_ROOT_PASSWORD=%s\nADMIN_PASSWORD=%s\n' "$(openssl rand -hex 16)" "$(openssl rand -hex 16)" > .env
 docker-compose up --build
 docker-compose down
 ```
