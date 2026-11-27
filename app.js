@@ -6,83 +6,106 @@
 require('./mongoose-db');
 require('./typeorm-db')
 
-var st = require('st');
 var crypto = require('crypto');
 var express = require('express');
 var http = require('http');
+var https = require('https');
+var fs = require('fs');
 var path = require('path');
-var ejsEngine = require('ejs-locals');
+var ejsEngine = require('ejs-mate');
 var bodyParser = require('body-parser');
 var session = require('express-session')
 var methodOverride = require('method-override');
 var logger = require('morgan');
 var errorHandler = require('errorhandler');
-var optional = require('optional');
-var marked = require('marked');
-var fileUpload = require('express-fileupload');
-var dust = require('dustjs-linkedin');
-var dustHelpers = require('dustjs-helpers');
-var cons = require('consolidate');
-const hbs = require('hbs')
+var helmet = require('helmet');
+var lusca = require('lusca');
+var multer = require('multer');
+var renderMarkdown = require('./lib/markdown');
+var viewEngines = require('./lib/view-engines');
 
 var app = express();
 var routes = require('./routes');
 var routesUsers = require('./routes/users.js')
 
+var isProduction = process.env.NODE_ENV === 'production';
+
 // all environments
 app.set('port', process.env.PORT || 3001);
 app.engine('ejs', ejsEngine);
-app.engine('dust', cons.dust);
-app.engine('hbs', hbs.__express);
-cons.dust.helpers = dustHelpers;
+app.engine('dust', viewEngines.dust);
+app.engine('hbs', viewEngines.handlebars);
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
+app.disable('x-powered-by');
+var directTls = Boolean(process.env.TLS_KEY_FILE && process.env.TLS_CERT_FILE);
+// Behind a reverse proxy, trust its X-Forwarded-For so rate limits key on the real client.
+if (isProduction && !directTls) {
+  app.set('trust proxy', 1);
+}
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      imgSrc: ["'self'", 'data:', 'https:'].concat(isProduction || directTls ? [] : ['http:']),
+      upgradeInsecureRequests: isProduction || directTls ? [] : null
+    }
+  }
+}));
+var limiter = routes.limiter;
 app.use(logger('dev'));
 app.use(methodOverride());
+// Static assets are served before sessions so they never create session entries.
+app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use(session({
-  secret: 'keyboard cat',
+  secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
   name: 'connect.sid',
-  cookie: { path: '/' }
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isProduction
+  }
 }))
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-app.use(fileUpload());
+app.use(function (req, res, next) {
+  req.body = req.body || {};
+  next();
+});
+app.use('/import', multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 1024 * 1024, files: 1, fields: 5, fieldSize: 1024, parts: 6 }
+}).single('importFile'));
+// /chat authenticates with credentials in the JSON body, not the session cookie.
+app.use(lusca.csrf({ blocklist: ['/chat'] }));
 
 // Routes
 app.use(routes.current_user);
-app.get('/', routes.index);
-app.get('/login', routes.login);
-app.post('/login', routes.loginHandler);
-app.get('/admin', routes.isLoggedIn, routes.admin);
-app.get('/account_details', routes.isLoggedIn, routes.get_account_details);
-app.post('/account_details', routes.isLoggedIn, routes.save_account_details);
-app.get('/logout', routes.logout);
-app.post('/create', routes.create);
-app.get('/destroy/:id', routes.destroy);
-app.get('/edit/:id', routes.edit);
-app.post('/update/:id', routes.update);
-app.post('/import', routes.import);
-app.get('/about_new', routes.about_new);
-app.get('/chat', routes.chat.get);
-app.put('/chat', routes.chat.add);
-app.delete('/chat', routes.chat.delete);
-app.use('/users', routesUsers)
+app.use(routes.router);
+app.use('/users', limiter, routesUsers)
 
-// Static
-app.use(st({ path: './public', url: '/public' }));
 
-// Add the option to output (sanitized!) markdown
-marked.setOptions({ sanitize: true });
-app.locals.marked = marked;
+// Markdown output with raw HTML escaped
+app.locals.marked = renderMarkdown;
 
 // development only
 if (app.get('env') == 'development') {
   app.use(errorHandler());
 }
 
-var token = 'SECRET_TOKEN_f8ed84e8f41e4146403dd4a6bbcea5e418d23a9';
-console.log('token: ' + token);
+function createServer() {
+  if (process.env.TLS_KEY_FILE && process.env.TLS_CERT_FILE) {
+    return https.createServer({
+      key: fs.readFileSync(process.env.TLS_KEY_FILE),
+      cert: fs.readFileSync(process.env.TLS_CERT_FILE)
+    }, app);
+  }
+  // TLS is expected to be terminated by a reverse proxy when no certificate is configured.
+  return http.createServer(app);
+}
 
-http.createServer(app).listen(app.get('port'), function () {
+createServer().listen(app.get('port'), function () {
   console.log('Express server listening on port ' + app.get('port'));
 });
