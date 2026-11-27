@@ -290,7 +290,7 @@ exports.import = function (req, res, next) {
 
   var fileData = req.file.buffer;
   function done(data) {
-    if (data.split('\n').length > MAX_IMPORT_LINES) {
+    if (data.replace(/\r?\n$/, '').split('\n').length > MAX_IMPORT_LINES) {
       return res.status(413).send('Import is limited to ' + MAX_IMPORT_LINES + ' lines.');
     }
     importLines(data).then(function () {
@@ -337,7 +337,7 @@ let lastId = 1;
 
 function findUser(auth) {
   return users.find((u) =>
-    typeof u.password === 'string' &&
+    typeof u.password === 'string' && u.password !== '' &&
     u.name === auth.name &&
     u.password === auth.password);
 }
