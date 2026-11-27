@@ -18,7 +18,18 @@ const dataSource = new typeorm.DataSource({
   ]
 })
 
-dataSource.initialize().then(() => {
+const MAX_CONNECT_ATTEMPTS = 10
+
+// MySQL can take a while to accept connections (e.g. on a fresh docker compose up), so retry.
+function initialize(attempt) {
+  return dataSource.initialize().catch((err) => {
+    if (attempt >= MAX_CONNECT_ATTEMPTS) throw err
+    console.error('MySQL not ready (attempt %d/%d), retrying in 3s', attempt, MAX_CONNECT_ATTEMPTS)
+    return new Promise((resolve) => setTimeout(resolve, 3000)).then(() => initialize(attempt + 1))
+  })
+}
+
+initialize(1).then(() => {
   const repo = dataSource.getRepository("Users")
 
   console.log('Seeding 2 users to MySQL users table: Liran (role: user), Simon (role: admin')
