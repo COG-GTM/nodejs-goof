@@ -39,7 +39,7 @@ if (mongoCFUri) {
   mongoUri = process.env.MONGODB_URI;
 }
 
-console.log("Using Mongo URI " + mongoUri);
+console.log("Using Mongo URI " + String(mongoUri).replace(/\/\/[^@\/]*@/, "//<credentials>@"));
 
 var security = require('./lib/security');
 
