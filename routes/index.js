@@ -150,10 +150,9 @@ function parse(todo) {
 
     console.log('period: ' + period);
 
-    // remove it
-    t = t.slice(0, reminder);
+    // replace the reminder text only when it parsed as a duration
     if (typeof period != 'undefined' && !Number.isNaN(period)) {
-      t += ' [' + ms(period) + ']';
+      t = t.slice(0, reminder) + ' [' + ms(period) + ']';
     }
   }
   return t;
@@ -256,7 +255,7 @@ function isBlank(str) {
 }
 
 function importLines(data) {
-  var lines = data.split('\n').slice(0, MAX_IMPORT_LINES);
+  var lines = data.split('\n');
   var saves = [];
   lines.forEach(function (line) {
     var parts = line.split(',');
@@ -291,6 +290,9 @@ exports.import = function (req, res, next) {
 
   var fileData = req.file.buffer;
   function done(data) {
+    if (data.split('\n').length > MAX_IMPORT_LINES) {
+      return res.status(413).send('Import is limited to ' + MAX_IMPORT_LINES + ' lines.');
+    }
     importLines(data).then(function () {
       res.redirect('/');
     }, next);
