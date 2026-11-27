@@ -65,8 +65,8 @@
                   "uriBaseId": "%SRCROOT%"
                 },
                 "region": {
-                  "startLine": 93,
-                  "endLine": 93,
+                  "startLine": 106,
+                  "endLine": 106,
                   "startColumn": 10,
                   "endColumn": 27
                 }
@@ -75,7 +75,7 @@
           ],
           "fingerprints": {
             "identity": "039eaf8c-d172-49d6-8c1e-4dde1ef54795",
-            "0": "7d8f5ccde7621883406a62b5f6c994370a125d6820d4b178c04a3af497f5b45d",
+            "0": "8f3428b1b857d901d9e9c644421cc403c1edc49ea55e61d062084c6758347f39",
             "1": "ae77ea27.4773f344.607187b5.e052b9a9.79a7d027.5fce695c.cd61fc56.89d75565.7a85a498.4773f344.d685e3e1.d7919eeb.79a7d027.5fce695c.cd61fc56.89d75565",
             "snyk/asset/finding/v1": "039eaf8c-d172-49d6-8c1e-4dde1ef54795"
           },
@@ -93,8 +93,8 @@
                             "uriBaseId": "%SRCROOT%"
                           },
                           "region": {
-                            "startLine": 93,
-                            "endLine": 93,
+                            "startLine": 106,
+                            "endLine": 106,
                             "startColumn": 10,
                             "endColumn": 27
                           }
@@ -147,7 +147,7 @@
         ]
       },
       "automationDetails": {
-        "id": "Snyk/Code/2026-11-27T06:05:27Z"
+        "id": "Snyk/Code/2026-11-27T06:11:50Z"
       }
     }
   ]

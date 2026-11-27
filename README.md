@@ -20,17 +20,27 @@ npm start
 ```
 This will run Goof locally, using a local mongo on the default port and listening on port 3001 (http://localhost:3001)
 
-Note: You *have* to use an old version of MongoDB version due to some of these old libraries' database server APIs. MongoDB 3 is known to work ok.
+Note: MongoDB 4.4 or newer is required (Mongoose 9). MongoDB 7 is known to work.
+
+The app reads credentials from the environment instead of hardcoded values:
+- `ADMIN_PASSWORD`: password for `admin@snyk.io` (the admin user is not seeded when unset)
+- `CHAT_USER_PASSWORD`: password for the chat `user` (chat user disabled when unset)
+- `SESSION_SECRET`: session signing secret (random per process when unset)
+- `MYSQL_PASSWORD` (plus optional `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_DATABASE`)
+- `TLS_KEY_FILE` / `TLS_CERT_FILE`: serve HTTPS directly instead of HTTP
 
 You can also run the MongoDB server individually via Docker, such as:
 
 ```sh
-docker run --rm -p 27017:27017 mongo:3
+docker run --rm -p 27017:27017 mongo:7
 ```
 
 ## Running with docker-compose
+`MYSQL_ROOT_PASSWORD` is required (export it or put it in a `.env` file); `ADMIN_PASSWORD`, `CHAT_USER_PASSWORD` and `SESSION_SECRET` are passed through when set.
+
+If you previously ran Goof with the old `mongo:3` / `mysql:5` images, remove their volumes first (`docker-compose down -v`); the newer database images cannot start on those data files.
 ```bash
-docker-compose up --build
+MYSQL_ROOT_PASSWORD=change-me ADMIN_PASSWORD=change-me docker-compose up --build
 docker-compose down
 ```
 
